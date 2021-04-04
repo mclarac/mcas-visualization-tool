@@ -30,24 +30,44 @@ raw_data <- raw_data %>%
               .funs = function(x) str_pad(x, width = 2, pad = "0")) %>% 
     mutate_at(.vars = c("countyfip", "cve_mun"),
               .funs = function(x) str_pad(x, width = 3, pad = "0")) %>% 
+    # there are several counties/municipios with the same names
+    # so we need to make sure which one is being selected in the dropdown lists
     mutate(county = paste0(statefip, ": ", county),
-           nom_mun = paste0(cve_ent, ": ", nom_mun))
+           nom_mun = paste0(cve_ent, ": ", nom_mun)) %>% 
+    rename(statefp = statefip, countyfp = countyfip)
+
+names(raw_data) <- names(raw_data) %>% toupper()
 
 load(file = "shapefiles.RData")
 
+# shapefiles transformations
+mex_states@data <- mex_states@data %>%
+    # remove MX for every GMI_ADMIN and extract only numbers from CVE_ENT
+    # so variable values are consistent with raw_data
+    mutate(STATEABBR = str_sub(GMI_ADMIN, start = 5),
+           CVE_ENT = str_extract(FIPS_ADMIN, pattern = "[[:digit:]]+"))
+
+mex_municipios@data <- mex_municipios@data %>% 
+    rename(NAME = NOM_MUN)
+
+us_states@data <- us_states@data %>% 
+    rename(STATEABBR = STUSPS)
+
 # -- helpers
 
-us_states_choices <- raw_data$state %>% unique() %>% sort()
+us_states_choices <- raw_data$STATE %>% unique() %>% sort()
 
-mex_states_choices <- raw_data$nom_ent %>% unique() %>% sort()
+mex_states_choices <- raw_data$NOM_ENT %>% unique() %>% sort()
 
 states_counties <- raw_data %>% 
-    distinct(state, county) %>% 
-    arrange(state, county)
+    select(STATE, COUNTY) %>%
+    distinct() %>% 
+    arrange(COUNTY)
 
 states_municipios <- raw_data %>% 
-    distinct(nom_ent, nom_mun) %>% 
-    arrange(nom_ent, nom_mun)
+    select(NOM_ENT, NOM_MUN) %>%
+    distinct() %>% 
+    arrange(NOM_MUN)
 
 # --- GUI
 ui <- fluidPage(
@@ -88,6 +108,8 @@ ui <- fluidPage(
                     
                     width = 6, 
                     
+                    # h4(textOutput(outputId = "title")),
+                    
                     leafletOutput(outputId = "map", height = "600px"),
                     
                     textOutput(outputId = "n_total", inline = TRUE)
@@ -96,6 +118,8 @@ ui <- fluidPage(
                 column(
                     
                     width = 6,
+                    
+                    # h4(textOutput(outputId = "title2")),
                     
                     leafletOutput(outputId = "map2", height = "600px"),
                     
@@ -142,7 +166,7 @@ server <- function(input, output, session) {
             selectInput(
                 inputId = "us_county",
                 label = "U.S. county:",
-                choices = c("All", filter(states_counties, state == input$us_state)$county),
+                choices = c("All", filter(states_counties, STATE == input$us_state)$COUNTY),
                 multiple = FALSE
             )
             
@@ -153,7 +177,7 @@ server <- function(input, output, session) {
             selectInput(
                 inputId = "municipio",
                 label = "Mexican municipio:",
-                choices = c("All", filter(states_municipios, nom_ent == input$mex_state)$nom_mun),
+                choices = c("All", filter(states_municipios, NOM_ENT == input$mex_state)$NOM_MUN),
                 multiple = FALSE
             )
             
@@ -161,7 +185,7 @@ server <- function(input, output, session) {
         
     })
     
-    distributions_df <- reactive({
+    migrations_df <- reactive({
         
         if(input$by == "Destination") {
             
@@ -170,17 +194,17 @@ server <- function(input, output, session) {
             req(input$us_county)
             
             df <- raw_data %>%
-                filter(state %in% input$us_state)
+                filter(STATE %in% input$us_state)
             
             if(input$us_county != "All"){
                 
                 df <- df %>% 
-                    filter(county == input$us_county) %>% 
-                    count(cve_ent, cve_mun, name = "migrations")
+                    filter(COUNTY == input$us_county) %>% 
+                    count(CVE_ENT, CVE_MUN, name = "migrations")
                 
             } else {
                 
-                df <- count(x = df, cve_ent, cve_mun, name = "migrations")
+                df <- count(x = df, CVE_ENT, CVE_MUN, name = "migrations")
             }
             
         } else {
@@ -190,17 +214,17 @@ server <- function(input, output, session) {
             req(input$municipio)
             
             df <- raw_data %>%
-                filter(nom_ent %in% input$mex_state)
+                filter(NOM_ENT %in% input$mex_state)
             
             if(input$municipio != "All"){
                 
                 df <- df %>% 
-                    filter(nom_mun == input$municipio) %>% 
-                    count(statefip, countyfip, name = "migrations")
+                    filter(NOM_MUN == input$municipio) %>% 
+                    count(STATEFP, COUNTYFP, name = "migrations")
                 
             } else {
                 
-                df <- count(x = df, statefip, countyfip, name = "migrations")
+                df <- count(x = df, STATEFP, COUNTYFP, name = "migrations")
                 
             }
         }
@@ -210,46 +234,54 @@ server <- function(input, output, session) {
     
     main_map_data <- reactive({
         
-        req(distributions_df())
+        req(migrations_df())
         
         if(input$by == "Destination"){
             
             shapefile <- mex_municipios
             
-            mask <- paste0(shapefile$CVE_ENT, shapefile$CVE_MUN) %in% paste0(distributions_df()$cve_ent, distributions_df()$cve_mun)
+            id_one <- paste0(shapefile$CVE_ENT, shapefile$CVE_MUN) 
             
-            shapefile <- shapefile[mask, ]
+            id_two <-  paste0(migrations_df()$CVE_ENT, migrations_df()$CVE_MUN)
+            
+            shapefile <- shapefile[id_one %in% id_two, ]
             
             shapefile@data <- shapefile@data %>%
-                left_join(y = distributions_df(),
-                          by = c("CVE_ENT" = "cve_ent", "CVE_MUN" = "cve_mun")) %>%
-                left_join(y = mex_states@data[, c("CVE_ENT", "GMI_ADMIN")], 
+                left_join(y = migrations_df(),
+                          by = c("CVE_ENT", "CVE_MUN")) %>%
+                left_join(y = mex_states@data[, c("CVE_ENT", "STATEABBR")], 
                           by = "CVE_ENT") %>% 
-                rename(NAME = NOM_MUN, 
-                       STATEABBR = GMI_ADMIN, 
-                       STATECD = CVE_ENT,
+                rename(STATECD = CVE_ENT,
                        COUNTYCD = CVE_MUN)
             
         } else {
             
             shapefile <- us_counties
             
-            mask <- paste0(shapefile$STATEFP, shapefile$COUNTYFP) %in% paste0(distributions_df()$statefip, distributions_df()$countyfip)
+            id_one <- paste0(shapefile$STATEFP, shapefile$COUNTYFP)
             
-            shapefile <- shapefile[mask, ]
+            id_two <- paste0(migrations_df()$STATEFP, migrations_df()$COUNTYFP)
+            
+            shapefile <- shapefile[id_one %in% id_two, ]
             
             shapefile@data <- shapefile@data %>%
-                left_join(y = distributions_df(),
-                          by = c("STATEFP" = "statefip", "COUNTYFP" = "countyfip")) %>%
-                left_join(y = us_states@data[, c("STATEFP", "STUSPS")],
+                left_join(y = migrations_df(),
+                          by = c("STATEFP", "COUNTYFP")) %>%
+                left_join(y = us_states@data[, c("STATEFP", "STATEABBR")],
                           by = "STATEFP") %>% 
-                rename(STATEABBR = STUSPS, 
-                       STATECD = STATEFP,
+                rename(STATECD = STATEFP,
                        COUNTYCD = COUNTYFP)
         }
         
         return(shapefile)
     })
+    
+    # -- display title for main map
+    # output$title <- renderText({
+    #     
+    #     "Some text"
+    #     
+    # })
     
     # -- main map
     output$map <- renderLeaflet({
@@ -302,7 +334,7 @@ server <- function(input, output, session) {
                 values = ~wt,
                 opacity = 0.85,
                 position = "bottomright",
-                title = "Migrations",
+                title = "Migrations Percentages",
                 labFormat = labelFormat(suffix = "%")
             ) %>%
             addPolylines(
@@ -316,33 +348,161 @@ server <- function(input, output, session) {
     
     # -- display total number of migrations for selected filter
     output$n_total <- renderText({
-        paste0("Total Number of Migrations: ", scales::comma(sum(main_map_data()@data$migrations)))
+        paste0("Matriculas: ", scales::comma(sum(main_map_data()@data$migrations)))
     })
     
+    # -- secondary data
+    sec_map_data <- eventReactive(input$map_shape_click, {
+        
+        county_id <- input$map_shape_click$id
+        
+        if(input$by == "Destination"){
+            
+            migrations <- raw_data %>% 
+                mutate(ID = paste0(CVE_ENT, CVE_MUN)) %>% 
+                filter(ID == county_id) %>% 
+                count(STATEFP, COUNTYFP, name = "migrations") %>% 
+                mutate(wt = migrations / sum(migrations) * 100)
+            
+            shapefile <- us_counties
+            
+            id_one <- paste0(shapefile$STATEFP, shapefile$COUNTYFP)
+            
+            id_two <- paste0(migrations$STATEFP, migrations$COUNTYFP)
+            
+            shapefile <- shapefile[id_one %in% id_two, ]
+            
+            shapefile@data <- shapefile@data %>%
+                left_join(y = migrations,
+                          by = c("STATEFP", "COUNTYFP")) %>%
+                left_join(y = us_states@data[, c("STATEFP", "STATEABBR")],
+                          by = "STATEFP")
+            
+        } else {
+            
+            migrations <- raw_data %>% 
+                mutate(ID = paste0(STATEFP, COUNTYFP)) %>% 
+                filter(ID == county_id) %>% 
+                count(CVE_ENT, CVE_MUN, name = "migrations") %>% 
+                mutate(wt = migrations / sum(migrations) * 100)
+            
+            shapefile <- mex_municipios
+            
+            id_one <- paste0(shapefile$CVE_ENT, shapefile$CVE_MUN)
+            
+            id_two <- paste0(migrations$CVE_ENT, migrations$CVE_MUN)
+            
+            shapefile <- shapefile[id_one %in% id_two, ]
+            
+            shapefile@data <- shapefile@data %>%
+                left_join(y = migrations,
+                          by = c("CVE_ENT", "CVE_MUN")) %>%
+                left_join(y = mex_states@data[, c("CVE_ENT", "STATEABBR")], 
+                          by = "CVE_ENT")
+        }
+        
+        return(shapefile)
+    })
     
-    # -- secondary map
-    # output$map2 <- renderLeaflet({
+    # -- display title for secondary map
+    # output$title2 <- renderText({
     #     
-    #     req(input$map_shape_click)
+    #     req(input$map_shape_click$id)
     #     
-    #     leaflet() %>%
-    #         addProviderTiles(provider = "CartoDB.Positron") %>%
-    #         setView(
-    #             zoom = 5,
-    #             # change lat and lon based on inputs
-    #             lat = mean(coordinates(main_map_data())[,2]),
-    #             lng = mean(coordinates(main_map_data())[,1])
-    #         )
+    #     county_id <- input$map_shape_click$id
+    #     
+    #     if(input$by == "Destination"){
+    #         
+    #         title <- raw_data %>% 
+    #             mutate(ID = paste0(cve_ent, cve_mun)) %>% 
+    #             filter(ID == county_id) %>% 
+    #             mutate(text = paste0(nom_mun, ", ", nom_ent))
+    #         
+    #         title <- title$text[1] 
+    #         
+    #         paste0("Destinations for Migrants born in ", title)
+    #         
+    #     } else {
+    #         
+    #         title <- raw_data %>% 
+    #             mutate(ID = paste0(statefip, countyfip)) %>% 
+    #             filter(ID == county_id) %>% 
+    #             mutate(text = paste0(county, ", ", state))
+    #         
+    #         title <- title$text[1] 
+    #         
+    #         paste0("Source Regions for Migrants in ", title)
+    #     }
+    #     
     # })
     
-    # -- data table only for testing
-    # output$table <- renderDT({
-    #     datatable(
-    #         data = distributions_df(),
-    #         options = list(pageLength = 50),
-    #         rownames = FALSE
-    #     )
-    # })
+    # -- secondary map based on user clicks on main map
+    output$map2 <- renderLeaflet({
+        
+        req(sec_map_data())
+        
+        leaflet() %>%
+            addProviderTiles(provider = "CartoDB.Positron") %>%
+            setView(
+                zoom = 5,
+                # change lat and lon based on inputs
+                lat = mean(coordinates(sec_map_data())[,2]),
+                lng = mean(coordinates(sec_map_data())[,1])
+            )
+    })
+    
+    # -- replace layer according to user inputs
+    observe({
+        
+        req(sec_map_data())
+        
+        n_max <- round(max(sec_map_data()@data$wt), digits = 0) + .5
+        
+        bins <- seq(from = 0, to = n_max, by = n_max / 5)
+        
+        pal <- colorBin("Purples", domain = sec_map_data()@data$wt, bins = bins)
+        
+        if(input$by == "Destination"){
+            states_map <- us_states
+        } else {
+            states_map <- mex_states
+        }
+        
+        leafletProxy(mapId = "map2", data = sec_map_data()) %>% 
+            addPolygons(
+                fillColor = ~ pal(wt),
+                popup = ~ paste0(
+                    "<b>", NAME, " (", STATEABBR, ") :</b> ",
+                    format(migrations, nsmall = 1, big.mark = ","), " migration(s)"
+                ),
+                weight = 1,
+                opacity = 1,
+                color = "black",
+                dashArray = "1",
+                fillOpacity = 0.85
+            ) %>%
+            addLegend(
+                pal = pal,
+                values = ~wt,
+                opacity = 0.85,
+                position = "bottomright",
+                title = "Migrations Percentages",
+                labFormat = labelFormat(suffix = "%")
+            ) %>%
+            addPolylines(
+                data = states_map,
+                color = "black",
+                opacity = 1,
+                weight = 3
+            )
+        
+    })
+    
+    # -- display total number of migrations for secondary map
+    output$n_total2 <- renderText({
+        paste0("Matriculas: ", scales::comma(sum(sec_map_data()@data$migrations)))
+    })
+
 }
 
 # run the application
