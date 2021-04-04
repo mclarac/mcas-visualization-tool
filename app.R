@@ -35,88 +35,6 @@ raw_data <- raw_data %>%
 
 load(file = "shapefiles.RData")
 
-# # -- U.S. map: destinations
-# n_max <- round(max(us_counties@data$wt), digits = 0) + .5
-# 
-# bins <- seq(from = 0, to = n_max, by = n_max / 5)
-# 
-# pal <- colorBin("Blues", domain = us_counties@data$wt, bins = bins)
-# 
-# leaflet(data = us_counties) %>% 
-#     addProviderTiles(provider = "Stamen.Toner") %>%
-#     setView(
-#         zoom = 4, 
-#         lat = mean(coordinates(us_counties)[,2]), 
-#         lng = mean(coordinates(us_counties)[,1])
-#     ) %>% 
-#     addPolygons(
-#         fillColor = ~ pal(wt),
-#         popup = ~ paste0(
-#             "<b>", NAME, " (", STUSPS, ") :</b> ", 
-#             format(migrations, nsmall = 1, big.mark = ","), " migration(s)"
-#         ),
-#         weight = 1,
-#         opacity = 1,
-#         color = "black",
-#         dashArray = "1",
-#         fillOpacity = 0.85
-#     ) %>%
-#     addLegend(
-#         pal = pal,
-#         values = ~wt,
-#         opacity = 0.85,
-#         position = "bottomright",
-#         title = "Destinations", 
-#         labFormat = labelFormat(suffix = "%")
-#     ) %>% 
-#     addPolylines(
-#         data = us_states, 
-#         color = "black", 
-#         opacity = 1, 
-#         weight = 3
-#     )
-# 
-# # -- Mexico map: sources
-# n_max <- round(max(mex_municipios@data$wt), digits = 0) + .5
-# 
-# bins <- seq(from = 0, to = n_max, by = n_max / 5)
-# 
-# pal <- colorBin("Blues", domain = mex_municipios@data$wt, bins = bins)
-# 
-# leaflet(data = mex_municipios) %>% 
-#     addProviderTiles(provider = "Stamen.Toner") %>%
-#     setView(
-#         zoom = 4, 
-#         lat = mean(coordinates(mex_municipios)[,2]), 
-#         lng = mean(coordinates(mex_municipios)[,1])
-#     ) %>% 
-#     addPolygons(
-#         fillColor = ~ pal(wt),
-#         popup = ~ paste0(
-#             "<b>", NOM_MUN, " (", GMI_ADMIN, ") :</b> ", 
-#             format(migrations, nsmall = 1, big.mark = ","), " migration(s)"
-#         ),
-#         weight = 1,
-#         opacity = 1,
-#         color = "black",
-#         dashArray = "1",
-#         fillOpacity = 0.85
-#     ) %>%
-#     addLegend(
-#         pal = pal,
-#         values = ~wt,
-#         opacity = 0.85,
-#         position = "bottomright",
-#         title = "Destinations", 
-#         labFormat = labelFormat(suffix = "%")
-#     ) %>% 
-#     addPolylines(
-#         data = mex_states, 
-#         color = "black", 
-#         opacity = 1, 
-#         weight = 3
-#     )
-
 # -- helpers
 
 us_states_choices <- raw_data$state %>% unique() %>% sort()
@@ -134,7 +52,7 @@ states_municipios <- raw_data %>%
 # --- GUI
 ui <- fluidPage(
     
-    titlePanel(title = "Migrant Destination & Sources Distributions"),
+    titlePanel(title = "Migrant Destinations & Sources Distributions"),
     
     br(),
     
@@ -151,7 +69,7 @@ ui <- fluidPage(
             radioButtons(
                 inputId = "by", 
                 label = "Analyze by:", 
-                choices = c("Destination", "Source"), 
+                choices = c("Source", "Destination"), 
                 inline = TRUE
             ),
             
@@ -165,14 +83,27 @@ ui <- fluidPage(
         mainPanel(
             width = 10,
             
-            leafletOutput(outputId = "map1", height = "600px"),
-            
-            # leafletOutput(outputId = "map2", height = "600px")
-            
-            # DTOutput("table")
+            fluidRow(
+                column(
+                    
+                    width = 6, 
+                    
+                    leafletOutput(outputId = "map", height = "600px"),
+                    
+                    textOutput(outputId = "n_total", inline = TRUE)
+                ),
+                
+                column(
+                    
+                    width = 6,
+                    
+                    leafletOutput(outputId = "map2", height = "600px"),
+                    
+                    textOutput(outputId = "n_total2", inline = TRUE)
+                )
+            )
         )
     )
-    
 )
 
 
@@ -292,7 +223,12 @@ server <- function(input, output, session) {
             shapefile@data <- shapefile@data %>%
                 left_join(y = distributions_df(),
                           by = c("CVE_ENT" = "cve_ent", "CVE_MUN" = "cve_mun")) %>%
-                left_join(mex_states@data[, c("CVE_ENT", "GMI_ADMIN")], by = "CVE_ENT")
+                left_join(y = mex_states@data[, c("CVE_ENT", "GMI_ADMIN")], 
+                          by = "CVE_ENT") %>% 
+                rename(NAME = NOM_MUN, 
+                       STATEABBR = GMI_ADMIN, 
+                       STATECD = CVE_ENT,
+                       COUNTYCD = CVE_MUN)
             
         } else {
             
@@ -305,26 +241,99 @@ server <- function(input, output, session) {
             shapefile@data <- shapefile@data %>%
                 left_join(y = distributions_df(),
                           by = c("STATEFP" = "statefip", "COUNTYFP" = "countyfip")) %>%
-                left_join(us_states@data[, c("STATEFP", "STUSPS")], by = "STATEFP")
+                left_join(y = us_states@data[, c("STATEFP", "STUSPS")],
+                          by = "STATEFP") %>% 
+                rename(STATEABBR = STUSPS, 
+                       STATECD = STATEFP,
+                       COUNTYCD = COUNTYFP)
         }
         
         return(shapefile)
     })
     
-    # -- basic map
-    output$map1 <- renderLeaflet({
+    # -- main map
+    output$map <- renderLeaflet({
         
         req(main_map_data())
         
         leaflet() %>%
             addProviderTiles(provider = "CartoDB.Positron") %>%
             setView(
-                zoom = 5,
+                zoom = 4,
                 # change lat and lon based on inputs
                 lat = mean(coordinates(main_map_data())[,2]),
                 lng = mean(coordinates(main_map_data())[,1])
             )
     })
+    
+    # -- replace layer according to user inputs
+    observe({
+        
+        req(main_map_data())
+        
+        n_max <- round(max(main_map_data()@data$wt), digits = 0) + .5
+        
+        bins <- seq(from = 0, to = n_max, by = n_max / 5)
+        
+        pal <- colorBin("Blues", domain = main_map_data()@data$wt, bins = bins)
+        
+        if(input$by == "Destination"){
+            states_map <- mex_states
+        } else {
+            states_map <- us_states
+        }
+        
+        leafletProxy(mapId = "map", data = main_map_data()) %>% 
+            addPolygons(
+                fillColor = ~ pal(wt),
+                popup = ~ paste0(
+                    "<b>", NAME, " (", STATEABBR, ") :</b> ",
+                    format(migrations, nsmall = 1, big.mark = ","), " migration(s)"
+                ),
+                weight = 1,
+                opacity = 1,
+                color = "black",
+                dashArray = "1",
+                fillOpacity = 0.85,
+                layerId = ~ paste0(STATECD, COUNTYCD)
+            ) %>%
+            addLegend(
+                pal = pal,
+                values = ~wt,
+                opacity = 0.85,
+                position = "bottomright",
+                title = "Migrations",
+                labFormat = labelFormat(suffix = "%")
+            ) %>%
+            addPolylines(
+                data = states_map,
+                color = "black",
+                opacity = 1,
+                weight = 3
+            )
+        
+    })
+    
+    # -- display total number of migrations for selected filter
+    output$n_total <- renderText({
+        paste0("Total Number of Migrations: ", scales::comma(sum(main_map_data()@data$migrations)))
+    })
+    
+    
+    # -- secondary map
+    # output$map2 <- renderLeaflet({
+    #     
+    #     req(input$map_shape_click)
+    #     
+    #     leaflet() %>%
+    #         addProviderTiles(provider = "CartoDB.Positron") %>%
+    #         setView(
+    #             zoom = 5,
+    #             # change lat and lon based on inputs
+    #             lat = mean(coordinates(main_map_data())[,2]),
+    #             lng = mean(coordinates(main_map_data())[,1])
+    #         )
+    # })
     
     # -- data table only for testing
     # output$table <- renderDT({
