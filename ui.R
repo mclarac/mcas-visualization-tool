@@ -28,7 +28,14 @@ ui <- shinyUI({
                 
                 uiOutput(outputId = "opts"),
                 
-                uiOutput(outputId = "opts2")
+                uiOutput(outputId = "opts2"),
+                
+                uiOutput(outputId = "opts3"),
+                
+                actionButton(
+                    inputId = "go", 
+                    label = "View Results"
+                )
             ),
             
             mainPanel(
@@ -44,7 +51,7 @@ ui <- shinyUI({
                         radioButtons(
                             inputId = "level", 
                             label = "Level of geographic aggregation:", 
-                            choices = c("State", "Commuting zone", "County/Municipio"), 
+                            choices = levels, 
                             inline = TRUE
                         ),
                         
@@ -62,7 +69,7 @@ ui <- shinyUI({
                         radioButtons(
                             inputId = "level2", 
                             label = "Level of geographic aggregation:", 
-                            choices = c("State", "Commuting zone", "County/Municipio"), 
+                            choices = levels, 
                             inline = TRUE
                         ),
                         

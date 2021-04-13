@@ -10,3 +10,7 @@ shapefiles/*
 
 # Data Files
 mcas_2008.csv
+
+# R files
+save-shapefiles.R
+shapefiles.RData

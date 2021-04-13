@@ -16,10 +16,74 @@ library("leaflet.extras")
 source(file = "ui.R", local = TRUE)
 source(file = "server.R")
 
+# -- data manipulation functions
+get_frequencies <- function(data, country = "us"){
+    
+    if(country == "us"){
+        
+        frequencies <- data %>% 
+            select(STATEFP, CZ, GEOID_US, MATRICULA) %>% 
+            gather(LEVEL, GEOID, -MATRICULA) %>% 
+            mutate(LEVEL = plyr::mapvalues(
+                x = LEVEL, 
+                from = c("STATEFP", "CZ", "GEOID_US"), 
+                to = levels)
+            )
+        
+    } else {
+        
+        frequencies <- data %>% 
+            select(CVE_ENT, CVE_CZ, GEOID_MX, MATRICULA) %>% 
+            gather(LEVEL, GEOID, -MATRICULA) %>% 
+            mutate(LEVEL = plyr::mapvalues(
+                x = LEVEL, 
+                from = c("CVE_ENT", "CVE_CZ", "GEOID_MX"), 
+                to = levels)
+            )
+            
+    }
+    
+    frequencies <- frequencies %>% 
+        group_by(LEVEL, GEOID) %>% 
+        summarise(n_total = sum(MATRICULA), .groups = "drop")
+    
+    return(frequencies)
+}
+
+filter_data <- function(data, ids, by = "Source"){
+    
+    # states <- sapply(ids, FUN = function(x) str_sub(x, end = 2)) %>% unique()
+    
+    if(by != "Source"){
+        
+        results <- data %>% 
+            filter(GEOID_US %in% ids) %>% 
+            get_frequencies(country = "mex")
+        
+    } else {
+        
+        results <- data %>% 
+            filter(GEOID_MX %in% ids) %>% 
+            get_frequencies(country = "us")
+    }
+    
+    results <- results %>% 
+        rename(migrations = n_total) %>% 
+        group_by(LEVEL) %>% 
+        # # wt: share of total matriculas accounted for by that source/destination
+        mutate(wt = migrations / sum(migrations) * 100) %>% 
+        ungroup()
+    
+    return(results)
+}
+
 # -- data loading
-file <- './mcas_2008.csv'
+mainfile <- './mcas_2008.csv'
+
+us_cz_file <- './shapefiles/cz1990_shapefile/cty_cz_st_crosswalk.csv'
+
 raw_data <- read_csv(
-    file = file, 
+    file = mainfile, 
     col_types = cols(
         nom_mun = col_character(),
         nom_ent = col_character(),
@@ -29,11 +93,32 @@ raw_data <- read_csv(
     )
 )
 
+commuting_zones <- read_csv(
+    file = us_cz_file,
+    col_types = cols(
+        .default = col_character()
+    )
+)
+
+# to check data inconsistencies
+# aux <- commuting_zones %>% 
+#     distinct(cz, statename, cz_name)
+# 
+# aux_counts <- aux %>% count(statename, cz_name, sort = TRUE)
+
+commuting_zones <- commuting_zones %>% 
+    mutate_at(.vars = c("cty", "cz"),
+              .funs = function(x) str_pad(x, width = 5, pad = "0")) %>% 
+    select(geoid_us = cty, cz, cz_name)
+
 raw_data <- raw_data %>% 
     mutate_at(.vars = c("statefip", "cve_ent"),
               .funs = function(x) str_pad(x, width = 2, pad = "0")) %>% 
     mutate_at(.vars = c("countyfip", "cve_mun"),
-              .funs = function(x) str_pad(x, width = 3, pad = "0")) %>% 
+              .funs = function(x) str_pad(x, width = 3, pad = "0"),) %>% 
+    mutate(geoid_us = paste0(statefip, countyfip),
+           geoid_mx = paste0(cve_ent, cve_mun)) %>% 
+    left_join(commuting_zones, by = "geoid_us") %>% 
     # there are several counties/municipios with the same names
     # so we need to make sure which one is being selected in the dropdown lists
     mutate(county = paste0(statefip, ": ", county),
@@ -42,60 +127,78 @@ raw_data <- raw_data %>%
 
 names(raw_data) <- names(raw_data) %>% toupper()
 
+# tmp <- filter(raw_data, is.na(CZ_NAME)) %>% distinct(GEOID_US, STATE, COUNTY)
+
+# -- shapefiles transformations
 load(file = "shapefiles.RData")
 
-# shapefiles transformations
 mex_states@data <- mex_states@data %>%
     # remove MX for every GMI_ADMIN and extract only numbers from CVE_ENT
     # so variable values are consistent with raw_data
     mutate(STATEABBR = str_sub(GMI_ADMIN, start = 5),
-           CVE_ENT = str_extract(FIPS_ADMIN, pattern = "[[:digit:]]+"))
+           GEOID = str_extract(FIPS_ADMIN, pattern = "[[:digit:]]+"))
 
 mex_municipios@data <- mex_municipios@data %>% 
-    rename(NAME = NOM_MUN)
+    rename(NAME = NOM_MUN) %>% 
+    mutate(GEOID = paste0(CVE_ENT, CVE_MUN)) %>% 
+    left_join(y = mex_states@data[, c("GEOID", "STATEABBR")], 
+              by = c("CVE_ENT" = "GEOID"))
 
 us_states@data <- us_states@data %>% 
     rename(STATEABBR = STUSPS)
 
+us_counties@data <- us_counties@data %>% 
+    left_join(y = us_states@data[, c("STATEFP", "STATEABBR")],
+              by = "STATEFP")
+
 # -- helpers
 
-# us_states_choices <- raw_data$STATE %>% unique() %>% sort()
-
-us_states_tmp <- raw_data %>% 
-    distinct(STATEFP, STATE) %>% 
-    arrange(STATE)
-
-us_states_choices <- us_states_tmp$STATEFP
-
-names(us_states_choices) <- us_states_tmp$STATE
-
-mex_states_tmp <- raw_data %>% 
-    distinct(CVE_ENT, NOM_ENT) %>% 
-    arrange(NOM_ENT)
-
-mex_states_choices <- mex_states_tmp$CVE_ENT
-
-names(mex_states_choices) <- mex_states_tmp$NOM_ENT
+levels <- c("State", "Commuting zone", "County/Municipio")
 
 states_counties <- raw_data %>% 
-    select(STATEFP, STATE, COUNTY) %>%
+    select(GEOID_US, STATEFP, STATE, CZ, CZ_NAME, COUNTYFP, COUNTY) %>%
     distinct() %>% 
-    mutate(ZONE = sample(
-        x = 1:5, 
-        size = nrow(.), 
-        replace = TRUE
-    )) %>% 
-    arrange(COUNTY)
+    arrange(STATE, CZ_NAME, COUNTY)
+
+us_frequencies <- get_frequencies(data = raw_data)
 
 states_municipios <- raw_data %>% 
-    select(CVE_ENT, NOM_ENT, NOM_MUN) %>%
+    select(GEOID_MX, CVE_ENT, NOM_ENT, CVE_MUN, NOM_MUN) %>%
     distinct() %>% 
-    mutate(NOM_ZONE = sample(
-        x = 1:5, 
-        size = nrow(.), 
-        replace = TRUE
-    )) %>% 
-    arrange(NOM_MUN)
+    # include dummy columns for mexican commuting zones 
+    mutate(
+        CVE_CZ = sample(
+            x = 1:5, 
+            size = nrow(.), 
+            replace = TRUE
+        ),
+        NOM_CZ = plyr::mapvalues(
+            x = CVE_CZ, 
+            from = 1:5, 
+            to = c("a", "b", "c", "d", "e")
+        )) %>% 
+    arrange(NOM_ENT, NOM_CZ, NOM_MUN)
+
+raw_data <- raw_data %>% 
+    # NOTE: this is temporary
+    left_join(states_municipios %>% select(GEOID_MX, CVE_CZ, NOM_CZ),
+              by = "GEOID_MX") 
+
+mex_frequencies <- get_frequencies(data = raw_data, country = "mex")
+
+# -- input choices
+
+us_states_choices <- states_counties$STATEFP %>% unique()
+
+names(us_states_choices) <- states_counties$STATE %>% unique()
+
+mex_states_choices <- states_municipios$CVE_ENT %>% unique()
+
+names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
+
+# -- dummy input
+# IMPORTANT: uncomment only for testing!!!
+# input <- list(by = "Source", mex_state = mex_states_choices[1], municipio = municipios)
 
 # run the application
 shinyApp(ui = ui, server = server)
