@@ -45,7 +45,9 @@ get_frequencies <- function(data, country = "us"){
     
     frequencies <- frequencies %>% 
         group_by(LEVEL, GEOID) %>% 
-        summarise(n_total = sum(MATRICULA), .groups = "drop")
+        summarise(n_total = sum(MATRICULA), .groups = "drop") %>% 
+        group_by(LEVEL) %>% 
+        mutate(wt = n_total / sum(n_total) * 100)
     
     return(frequencies)
 }
@@ -68,11 +70,8 @@ filter_data <- function(data, ids, by = "Source"){
     }
     
     results <- results %>% 
-        rename(migrations = n_total) %>% 
-        group_by(LEVEL) %>% 
-        # # wt: share of total matriculas accounted for by that source/destination
-        mutate(wt = migrations / sum(migrations) * 100) %>% 
-        ungroup()
+        # wt: share of total matriculas accounted for by that source/destination
+        rename(migrations = n_total)
     
     return(results)
 }
@@ -186,6 +185,8 @@ raw_data <- raw_data %>%
 
 mex_frequencies <- get_frequencies(data = raw_data, country = "mex")
 
+total_matriculas <- sum(raw_data$MATRICULA)
+
 # -- input choices
 
 us_states_choices <- states_counties$STATEFP %>% unique()
@@ -198,7 +199,12 @@ names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
 
 # -- dummy input
 # IMPORTANT: uncomment only for testing!!!
-# input <- list(by = "Source", mex_state = mex_states_choices[1], municipio = municipios)
+input <- list(
+    by = "Destination", 
+    us_state = us_states_choices[1]
+    # mex_state = mex_states_choices[1],
+    # municipio = municipios
+)
 
 # run the application
 shinyApp(ui = ui, server = server)

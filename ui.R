@@ -57,7 +57,15 @@ ui <- shinyUI({
                         
                         leafletOutput(outputId = "map", height = "600px"),
                         
-                        textOutput(outputId = "n_total", inline = TRUE)
+                        textOutput(outputId = "n_total", inline = TRUE),
+                        
+                        tags$head(
+                            tags$style(
+                                "#n_total{ color: black;
+                                 font-size: 16px;
+                                 }"
+                            )
+                        )
                     ),
                     
                     column(
@@ -75,7 +83,15 @@ ui <- shinyUI({
                         
                         leafletOutput(outputId = "map2", height = "600px"),
                         
-                        textOutput(outputId = "n_total2", inline = TRUE)
+                        textOutput(outputId = "n_total2", inline = TRUE),
+                        
+                        tags$head(
+                            tags$style(
+                                "#n_total2{ color: black;
+                                 font-size: 16px;
+                                 }"
+                            )
+                        )
                     )
                 )
             )
