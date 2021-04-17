@@ -33,12 +33,12 @@ get_frequencies <- function(data, country = "us"){
     } else {
         
         frequencies <- data %>% 
-            select(CVE_ENT, CVE_CZ, GEOID_MX, MATRICULA) %>% 
+            select(CVE_ENT, GEOID_MX, MATRICULA) %>% 
             gather(LEVEL, GEOID, -MATRICULA) %>% 
             mutate(LEVEL = plyr::mapvalues(
                 x = LEVEL, 
-                from = c("CVE_ENT", "CVE_CZ", "GEOID_MX"), 
-                to = levels)
+                from = c("CVE_ENT", "GEOID_MX"), 
+                to = levels[!levels %in% "Commuting zone"])
             )
             
     }
