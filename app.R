@@ -164,24 +164,7 @@ us_frequencies <- get_frequencies(data = raw_data)
 states_municipios <- raw_data %>% 
     select(GEOID_MX, CVE_ENT, NOM_ENT, CVE_MUN, NOM_MUN) %>%
     distinct() %>% 
-    # include dummy columns for mexican commuting zones 
-    mutate(
-        CVE_CZ = sample(
-            x = 1:5, 
-            size = nrow(.), 
-            replace = TRUE
-        ),
-        NOM_CZ = plyr::mapvalues(
-            x = CVE_CZ, 
-            from = 1:5, 
-            to = c("a", "b", "c", "d", "e")
-        )) %>% 
-    arrange(NOM_ENT, NOM_CZ, NOM_MUN)
-
-raw_data <- raw_data %>% 
-    # NOTE: this is temporary
-    left_join(states_municipios %>% select(GEOID_MX, CVE_CZ, NOM_CZ),
-              by = "GEOID_MX") 
+    arrange(NOM_ENT, NOM_MUN)
 
 mex_frequencies <- get_frequencies(data = raw_data, country = "mex")
 
@@ -199,12 +182,12 @@ names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
 
 # -- dummy input
 # IMPORTANT: uncomment only for testing!!!
-input <- list(
-    by = "Destination", 
-    us_state = us_states_choices[1]
-    # mex_state = mex_states_choices[1],
-    # municipio = municipios
-)
+# input <- list(
+#     by = "Destination", 
+#     us_state = us_states_choices[1]
+#     # mex_state = mex_states_choices[1],
+#     # municipio = municipios
+# )
 
 # run the application
 shinyApp(ui = ui, server = server)

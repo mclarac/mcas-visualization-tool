@@ -43,24 +43,7 @@ server <- function(input, output, session) {
                 selected = "All"
             )
             
-        } else {
-            
-            req(input$mex_state)
-            
-            aux_data <- filter(states_municipios, CVE_ENT %in% input$mex_state)
-            
-            c_zones <- aux_data$CVE_CZ
-            
-            names(c_zones) <- aux_data$NOM_CZ
-            
-            selectInput(
-                inputId = "mex_cz",
-                label = "Mexican Commuting Zone:",
-                choices = c_zones,
-                multiple = TRUE,
-                selected = "All"
-            )
-        }
+        } 
     })
     
     output$opts3 <- renderUI({
@@ -95,15 +78,7 @@ server <- function(input, output, session) {
             
             req(input$mex_state)
             
-            if(!is.null(input$mex_cz)){
-                
-                aux_data <- states_municipios %>% 
-                    filter(CVE_ENT %in% input$mex_state, CVE_CZ %in% input$mex_cz)
-                
-            } else {
-                
-                aux_data <- filter(states_municipios, CVE_ENT %in% input$mex_state)
-            }
+            aux_data <- filter(states_municipios, CVE_ENT %in% input$mex_state)
             
             municipios <- aux_data$CVE_MUN
             
@@ -115,6 +90,50 @@ server <- function(input, output, session) {
                 choices = municipios,
                 multiple = TRUE,
                 selected = "All"
+            )
+        }
+    })
+    
+    output$opts4 <- renderUI({
+        
+        if(input$by == "Destination"){
+            
+            radioButtons(
+                inputId = "level", 
+                label = "Level of geographic aggregation:", 
+                choices = levels[!levels %in% "Commuting zone"], 
+                inline = TRUE
+            )
+            
+        } else {
+            
+            radioButtons(
+                inputId = "level", 
+                label = "Level of geographic aggregation:", 
+                choices = levels, 
+                inline = TRUE
+            )
+        }
+    })
+    
+    output$opts5 <- renderUI({
+        
+        if(input$by == "Destination"){
+            
+            radioButtons(
+                inputId = "level", 
+                label = "Level of geographic aggregation:", 
+                choices = levels, 
+                inline = TRUE
+            )
+            
+        } else {
+            
+            radioButtons(
+                inputId = "level", 
+                label = "Level of geographic aggregation:", 
+                choices = levels[!levels %in% "Commuting zone"], 
+                inline = TRUE
             )
         }
     })

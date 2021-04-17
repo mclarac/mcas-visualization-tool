@@ -48,12 +48,7 @@ ui <- shinyUI({
                         
                         # h4(textOutput(outputId = "title")),
                         
-                        radioButtons(
-                            inputId = "level", 
-                            label = "Level of geographic aggregation:", 
-                            choices = levels, 
-                            inline = TRUE
-                        ),
+                        uiOutput(outputId = "opts4"),
                         
                         leafletOutput(outputId = "map", height = "600px"),
                         
@@ -74,12 +69,7 @@ ui <- shinyUI({
                         
                         # h4(textOutput(outputId = "title2")),
                         
-                        radioButtons(
-                            inputId = "level2", 
-                            label = "Level of geographic aggregation:", 
-                            choices = levels, 
-                            inline = TRUE
-                        ),
+                        uiOutput(outputId = "opts5"),
                         
                         leafletOutput(outputId = "map2", height = "600px"),
                         
