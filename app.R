@@ -150,6 +150,20 @@ us_counties@data <- us_counties@data %>%
     left_join(y = us_states@data[, c("STATEFP", "STATEABBR")],
               by = "STATEFP")
 
+us_cz <- readOGR('./shapefiles/cz1990_shapefile/cz1990.shp')
+
+commuting_zones <- commuting_zones %>% 
+    left_join(us_counties@data %>% select(GEOID, STATEABBR),
+              by = c('geoid_us' = 'GEOID')) %>% 
+    select(-geoid_us) %>% 
+    # TODO: check why when keeping distinct columns considering all cols, the # of CZs increases
+    distinct(cz, .keep_all = TRUE)
+
+us_cz@data <- us_cz@data %>% 
+    mutate(cz = str_pad(cz, width = 5, pad = "0")) %>% 
+    left_join(commuting_zones, by = "cz") %>% 
+    rename(GEOID = cz, NAME = cz_name)
+
 # -- helpers
 
 levels <- c("State", "Commuting zone", "County/Municipio")
@@ -182,12 +196,13 @@ names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
 
 # -- dummy input
 # IMPORTANT: uncomment only for testing!!!
-# input <- list(
-#     by = "Destination", 
-#     us_state = us_states_choices[1]
-#     # mex_state = mex_states_choices[1],
-#     # municipio = municipios
-# )
+input <- list(
+    by = "Source",
+    # us_state = us_states_choices[1]
+    mex_state = mex_states_choices[1],
+    level = "Commuting zone"
+    # municipio = municipios
+)
 
 # run the application
 shinyApp(ui = ui, server = server)

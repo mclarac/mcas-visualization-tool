@@ -102,7 +102,8 @@ server <- function(input, output, session) {
                 inputId = "level", 
                 label = "Level of geographic aggregation:", 
                 choices = levels[!levels %in% "Commuting zone"], 
-                inline = TRUE
+                inline = TRUE,
+                selected = levels[2]
             )
             
         } else {
@@ -111,7 +112,8 @@ server <- function(input, output, session) {
                 inputId = "level", 
                 label = "Level of geographic aggregation:", 
                 choices = levels, 
-                inline = TRUE
+                inline = TRUE,
+                selected = levels[3]
             )
         }
     })
@@ -121,30 +123,34 @@ server <- function(input, output, session) {
         if(input$by == "Destination"){
             
             radioButtons(
-                inputId = "level", 
+                inputId = "level2", 
                 label = "Level of geographic aggregation:", 
                 choices = levels, 
-                inline = TRUE
+                inline = TRUE,
+                selected = levels[3]
             )
             
         } else {
             
             radioButtons(
-                inputId = "level", 
+                inputId = "level2", 
                 label = "Level of geographic aggregation:", 
                 choices = levels[!levels %in% "Commuting zone"], 
-                inline = TRUE
+                inline = TRUE,
+                selected = levels[2]
             )
         }
     })
     
     main_map_data <- eventReactive(input$go, {
         
+        req(input$level)
+        
         if(input$by == "Destination"){
             
             req(input$us_state)
             
-            shapefile <- mex_municipios
+            if(input$level == "County/Municipio") shapefile <- mex_municipios else shapefile <- mex_states
             
             country_frequencies <- mex_frequencies
             
@@ -162,7 +168,19 @@ server <- function(input, output, session) {
             
             req(input$mex_state)
             
-            shapefile <- us_counties
+            if(input$level == "County/Municipio"){
+                
+                shapefile <- us_counties
+                
+            } else if(input$level == "State"){
+                    
+                shapefile <- us_states
+                
+            } else {
+                
+                shapefile <- us_cz
+            }
+            
             
             country_frequencies <- us_frequencies
             
@@ -180,7 +198,7 @@ server <- function(input, output, session) {
         
         migrations <- filter_data(raw_data, ids, by = input$by) %>% 
             # TODO: incorporate level input
-            filter(LEVEL == "County/Municipio") %>% 
+            filter(LEVEL == input$level) %>% 
             # wt.x: share of total matriculas accounted for by that source/destination
             # wt.y: destination/source share of overall MCAS
             left_join(y = country_frequencies,
@@ -189,7 +207,7 @@ server <- function(input, output, session) {
         shapefile <- shapefile[shapefile$GEOID %in% migrations$GEOID, ]
         
         shapefile@data <- shapefile@data %>%
-            left_join(y = migrations, by = "GEOID")
+            inner_join(y = migrations, by = "GEOID")
         
         return(shapefile)
     })
@@ -210,7 +228,7 @@ server <- function(input, output, session) {
             addProviderTiles(provider = "CartoDB.Positron") %>%
             setView(
                 zoom = 4,
-                # change lat and lon based on inputs
+                # change latitude and longitude based on inputs
                 lat = mean(coordinates(main_map_data())[,2]),
                 lng = mean(coordinates(main_map_data())[,1])
             )
@@ -382,7 +400,7 @@ server <- function(input, output, session) {
         
         bins <- seq(from = 0, to = n_max, by = n_max / 5)
         
-        pal <- colorBin("Blues", domain = data$wt.x, bins = bins)
+        pal <- colorBin("Purples", domain = data$wt.x, bins = bins)
         
         if(input$by == "Destination"){
             states_map <- us_states
