@@ -142,7 +142,6 @@ server <- function(input, output, session) {
         }
     })
     
-    # main_map_data <- eventReactive(input$go, {
     main_map_data <- reactive({
         
         req(input$level)
@@ -155,14 +154,18 @@ server <- function(input, output, session) {
             
             country_frequencies <- mex_frequencies
             
+            
             if(!is.null(input$us_county)){
                 
                 ids <- input$us_county
                 
+            } else if(!is.null(input$us_cz)){
+                
+                ids <- filter(raw_data, CZ %in% input$us_cz)$GEOID_US
+                
             } else {
                 
                 ids <- filter(raw_data, STATEFP %in% input$us_state)$GEOID_US
-                
             }
             
         } else {
