@@ -302,8 +302,6 @@ server <- function(input, output, session) {
     })
     
     # -- secondary data: updated when user clicks on a location on the map on the LHS
-    # TODO: when user changes level from LHS map, it throws an error -- How to avoid that?
-    # Note: it makes all sense as another location should be clicked first
     sec_map_data <- reactive({
         
         req(input$map_shape_click)
@@ -345,16 +343,12 @@ server <- function(input, output, session) {
         
         id <- input$map_shape_click$id
         
-        input$level <- "County/Municipio"
+        # input$level <- "County/Municipio"
         
         if(input$level != "County/Municipio"){
             
             id <- get_ids(raw_data, id = id, by = input$by, level = input$level)
         }
-        
-        validate(
-            need(!identical(id, character(0)), "Please select a location to update the map")
-        )
         
         migrations <- filter_data(raw_data, ids = id, by = by) %>%
             filter(LEVEL == input$level2) %>%
@@ -362,6 +356,11 @@ server <- function(input, output, session) {
             # wt.y: destination/source share of overall MCAS
             left_join(y = country_frequencies,
                       by = c("LEVEL", "GEOID"))
+        
+        # when user changes level from LHS map, the data is empty until a new location is selected
+        validate(
+            need(nrow(migrations) > 0, "Please select a location to update the map")
+        )
         
         shapefile <- shapefile[shapefile$GEOID %in% migrations$GEOID, ]
         
