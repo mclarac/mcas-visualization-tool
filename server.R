@@ -103,7 +103,7 @@ server <- function(input, output, session) {
                 label = "Level of geographic aggregation:", 
                 choices = levels[!levels %in% "Commuting zone"], 
                 inline = TRUE,
-                selected = levels[2]
+                selected = levels[3]
             )
             
         } else {
@@ -137,12 +137,13 @@ server <- function(input, output, session) {
                 label = "Level of geographic aggregation:", 
                 choices = levels[!levels %in% "Commuting zone"], 
                 inline = TRUE,
-                selected = levels[2]
+                selected = levels[3]
             )
         }
     })
     
-    main_map_data <- eventReactive(input$go, {
+    # main_map_data <- eventReactive(input$go, {
+    main_map_data <- reactive({
         
         req(input$level)
         
@@ -173,7 +174,7 @@ server <- function(input, output, session) {
                 shapefile <- us_counties
                 
             } else if(input$level == "State"){
-                    
+                
                 shapefile <- us_states
                 
             } else {
@@ -181,23 +182,13 @@ server <- function(input, output, session) {
                 shapefile <- us_cz
             }
             
-            
             country_frequencies <- us_frequencies
             
-            if(!is.null(input$mex_cz)){
-                
-                ids <- filter(raw_data, CVE_CZ %in% input$mex_cz)$GEOID_MX
-                
-            } else {
-                
-                ids <- filter(raw_data, CVE_ENT %in% input$mex_state)$GEOID_MX
-                
-            }
+            ids <- filter(raw_data, CVE_ENT %in% input$mex_state)$GEOID_MX
             
         }
         
         migrations <- filter_data(raw_data, ids, by = input$by) %>% 
-            # TODO: incorporate level input
             filter(LEVEL == input$level) %>% 
             # wt.x: share of total matriculas accounted for by that source/destination
             # wt.y: destination/source share of overall MCAS
@@ -211,13 +202,6 @@ server <- function(input, output, session) {
         
         return(shapefile)
     })
-    
-    # -- display title for main map
-    # output$title <- renderText({
-    #     
-    #     "Some text"
-    #     
-    # })
     
     # -- main map
     output$map <- renderLeaflet({
@@ -298,18 +282,38 @@ server <- function(input, output, session) {
         n_total <- sum(main_map_data()@data$migrations)
         
         share <- n_total / total_matriculas * 100
-        
+        # TODO: when level is commuting zone, the number of matriculas decreases
         paste0("No. Matriculas for ", input$by, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
     })
-
+    
+    output$aux <- renderText({
+        input$map_shape_click$id
+    })
+    
     # -- secondary data
-    sec_map_data <- eventReactive(input$map_shape_click, {
-
-        county_id <- input$map_shape_click$id
-
+    # sec_map_data <- eventReactive(input$map_shape_click, {
+    sec_map_data <- reactive({
+        
+        req(input$map_shape_click)
+        
+        req(input$level2)
+        
         if(input$by == "Destination"){
             
-            shapefile <- us_counties
+            req(input$us_state)
+            
+            if(input$level2 == "County/Municipio"){
+                
+                shapefile <- us_counties
+                
+            } else if(input$level2 == "State"){
+                
+                shapefile <- us_states
+                
+            } else {
+                
+                shapefile <- us_cz
+            }
             
             country_frequencies <- us_frequencies
             
@@ -317,7 +321,9 @@ server <- function(input, output, session) {
             
         } else {
             
-            shapefile <- mex_municipios
+            req(input$mex_state)
+            
+            if(input$level2 == "County/Municipio") shapefile <- mex_municipios else shapefile <- mex_states
             
             country_frequencies <- mex_frequencies
             
@@ -325,9 +331,15 @@ server <- function(input, output, session) {
             
         }
         
-        migrations <- filter_data(raw_data, ids = county_id, by = by) %>% 
-            # TODO: incorporate level input
-            filter(LEVEL == "County/Municipio") %>% 
+        id <- input$map_shape_click$id
+        
+        if(input$level != "County/Municipio"){
+            
+            id <- get_ids(raw_data, id = id, by = input$by, level = input$level)
+        }
+        
+        migrations <- filter_data(raw_data, ids = id, by = by) %>%
+            filter(LEVEL == input$level2) %>%
             # wt.x: share of total matriculas accounted for by that source/destination
             # wt.y: destination/source share of overall MCAS
             left_join(y = country_frequencies,
@@ -341,44 +353,12 @@ server <- function(input, output, session) {
         return(shapefile)
         
     })
-
-    # # -- display title for secondary map
-    # # output$title2 <- renderText({
-    # #
-    # #     req(input$map_shape_click$id)
-    # #
-    # #     county_id <- input$map_shape_click$id
-    # #
-    # #     if(input$by == "Destination"){
-    # #
-    # #         title <- raw_data %>%
-    # #             mutate(ID = paste0(cve_ent, cve_mun)) %>%
-    # #             filter(ID == county_id) %>%
-    # #             mutate(text = paste0(nom_mun, ", ", nom_ent))
-    # #
-    # #         title <- title$text[1]
-    # #
-    # #         paste0("Destinations for Migrants born in ", title)
-    # #
-    # #     } else {
-    # #
-    # #         title <- raw_data %>%
-    # #             mutate(ID = paste0(statefip, countyfip)) %>%
-    # #             filter(ID == county_id) %>%
-    # #             mutate(text = paste0(county, ", ", state))
-    # #
-    # #         title <- title$text[1]
-    # #
-    # #         paste0("Source Regions for Migrants in ", title)
-    # #     }
-    # #
-    # # })
-
+    
     # -- secondary map based on user clicks on main map
     output$map2 <- renderLeaflet({
-
+        
         req(sec_map_data())
-
+        
         leaflet() %>%
             addProviderTiles(provider = "CartoDB.Positron") %>%
             setView(
@@ -388,10 +368,10 @@ server <- function(input, output, session) {
                 lng = mean(coordinates(sec_map_data())[,1])
             )
     })
-
+    
     # -- replace layer according to user inputs
     observe({
-
+        
         req(sec_map_data())
         
         data <- sec_map_data()@data
@@ -442,31 +422,52 @@ server <- function(input, output, session) {
                 opacity = 1,
                 weight = 2
             )
-
+        
     })
-
+    
     # -- display total number of migrations for secondary map
     output$n_total2 <- renderText({
         
         req(input$map_shape_click$id)
-
-        county_id <- as.character(input$map_shape_click$id)
-
+        
+        id <- as.character(input$map_shape_click$id)
+        
         if(input$by == "Destination"){
-
-            name <- filter(raw_data, GEOID_MX == county_id)$NOM_MUN[1]            
-
+            
+            if(input$level == "State"){
+                
+                name <- filter(raw_data, CVE_ENT == id)$NOM_ENT[1]
+                
+            } else {
+                
+                name <- filter(raw_data, GEOID_MX == id)$NOM_MUN[1]
+            }
+            
         } else {
-
-            name <- filter(raw_data, GEOID_US == county_id)$COUNTY[1]
+            
+            if(input$level == "State"){
+                
+                name <- filter(raw_data, STATEFP == id)$STATE[1]
+                
+            } else if(input$level == "Commuting zone"){
+                
+                name <- filter(raw_data, CZ == id)$CZ_NAME[1]
+                
+            } else {
+                
+                name <- filter(raw_data, GEOID_US == id)$COUNTY[1]
+            }
+            
         }
-
+        
         n_total <- sum(sec_map_data()@data$migrations)
-
+        
+        # sum(shapefile@data$migrations)
+        
         share <- n_total / total_matriculas * 100
-
+        
         paste0("No. Matriculas for ", name, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
-    
+        
     })
     
 }

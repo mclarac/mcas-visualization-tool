@@ -32,10 +32,10 @@ ui <- shinyUI({
                 
                 uiOutput(outputId = "opts3"),
                 
-                actionButton(
-                    inputId = "go", 
-                    label = "View Results"
-                )
+                # actionButton(
+                #     inputId = "go", 
+                #     label = "View Results"
+                # )
             ),
             
             mainPanel(
@@ -60,7 +60,11 @@ ui <- shinyUI({
                                  font-size: 16px;
                                  }"
                             )
-                        )
+                        ),
+                        
+                        br(),
+                        
+                        textOutput(outputId = "aux", inline = TRUE)
                     ),
                     
                     column(

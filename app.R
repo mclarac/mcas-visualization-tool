@@ -17,6 +17,28 @@ source(file = "ui.R", local = TRUE)
 source(file = "server.R")
 
 # -- data manipulation functions
+get_ids <- function(data, id, by = "Source", level = "State"){
+    
+    if(by == "Source"){
+        
+        if(level == "State"){
+            
+            ids <- filter(raw_data, STATEFP == id)
+            
+        } else {
+            
+            ids <- filter(raw_data, CZ == id)
+        }
+        
+        ids <- ids$GEOID_US %>% unique()
+        
+    } else {
+        
+        ids <- filter(raw_data, CVE_ENT == id)$GEOID_MX %>% unique()
+        
+    } 
+}
+
 get_frequencies <- function(data, country = "us"){
     
     if(country == "us"){
@@ -53,8 +75,6 @@ get_frequencies <- function(data, country = "us"){
 }
 
 filter_data <- function(data, ids, by = "Source"){
-    
-    # states <- sapply(ids, FUN = function(x) str_sub(x, end = 2)) %>% unique()
     
     if(by != "Source"){
         
@@ -135,7 +155,8 @@ mex_states@data <- mex_states@data %>%
     # remove MX for every GMI_ADMIN and extract only numbers from CVE_ENT
     # so variable values are consistent with raw_data
     mutate(STATEABBR = str_sub(GMI_ADMIN, start = 5),
-           GEOID = str_extract(FIPS_ADMIN, pattern = "[[:digit:]]+"))
+           GEOID = str_extract(FIPS_ADMIN, pattern = "[[:digit:]]+")) %>% 
+    rename(NAME = ADMIN_NAME)
 
 mex_municipios@data <- mex_municipios@data %>% 
     rename(NAME = NOM_MUN) %>% 
@@ -199,8 +220,10 @@ names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
 input <- list(
     by = "Source",
     # us_state = us_states_choices[1]
-    mex_state = mex_states_choices[1],
-    level = "Commuting zone"
+    mex_state = "Aguascalientes",
+    mex_municipio = "01: Aguascalientes",
+    level = "State",
+    level2 = "State"
     # municipio = municipios
 )
 
