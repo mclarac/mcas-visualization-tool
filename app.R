@@ -74,7 +74,7 @@ get_frequencies <- function(data, country = "us"){
     return(frequencies)
 }
 
-filter_data <- function(data, ids, by = "Source"){
+filter_data <- function(data, ids, by){
     
     if(by != "Source"){
         
@@ -220,11 +220,11 @@ names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
 input <- list(
     by = "Source",
     # us_state = us_states_choices[1]
-    mex_state = "Aguascalientes",
-    mex_municipio = "01: Aguascalientes",
+    mex_state = mex_states_choices[1],
+    municipio = municipios[1],
     level = "State",
-    level2 = "State"
-    # municipio = municipios
+    level2 = "State",
+    map_shape_click = list(id = "06")
 )
 
 # run the application

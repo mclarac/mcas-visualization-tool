@@ -30,7 +30,7 @@ ui <- shinyUI({
                 
                 uiOutput(outputId = "opts2"),
                 
-                uiOutput(outputId = "opts3"),
+                uiOutput(outputId = "opts3")
                 
                 # actionButton(
                 #     inputId = "go", 
@@ -78,6 +78,10 @@ ui <- shinyUI({
                         leafletOutput(outputId = "map2", height = "600px"),
                         
                         textOutput(outputId = "n_total2", inline = TRUE),
+                        
+                        br(),
+                        
+                        textOutput(outputId = "aux2", inline = TRUE),
                         
                         tags$head(
                             tags$style(

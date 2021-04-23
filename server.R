@@ -62,7 +62,7 @@ server <- function(input, output, session) {
                 aux_data <- filter(states_counties, STATEFP %in% input$us_state)
             }
             
-            counties <- aux_data$COUNTYFP
+            counties <- aux_data$GEOID_US
             
             names(counties) <- aux_data$COUNTY
             
@@ -80,7 +80,7 @@ server <- function(input, output, session) {
             
             aux_data <- filter(states_municipios, CVE_ENT %in% input$mex_state)
             
-            municipios <- aux_data$CVE_MUN
+            municipios <- aux_data$GEOID_MX
             
             names(municipios) <- aux_data$NOM_MUN
             
@@ -127,7 +127,7 @@ server <- function(input, output, session) {
                 label = "Level of geographic aggregation:", 
                 choices = levels, 
                 inline = TRUE,
-                selected = levels[3]
+                selected = levels[1]
             )
             
         } else {
@@ -137,7 +137,7 @@ server <- function(input, output, session) {
                 label = "Level of geographic aggregation:", 
                 choices = levels[!levels %in% "Commuting zone"], 
                 inline = TRUE,
-                selected = levels[3]
+                selected = levels[1]
             )
         }
     })
@@ -155,9 +155,9 @@ server <- function(input, output, session) {
             
             country_frequencies <- mex_frequencies
             
-            if(!is.null(input$us_cz)){
+            if(!is.null(input$us_county)){
                 
-                ids <- filter(raw_data, CZ %in% input$us_cz)$GEOID_US
+                ids <- input$us_county
                 
             } else {
                 
@@ -184,7 +184,15 @@ server <- function(input, output, session) {
             
             country_frequencies <- us_frequencies
             
-            ids <- filter(raw_data, CVE_ENT %in% input$mex_state)$GEOID_MX
+            if(!is.null(input$municipio)){
+                
+                ids <- input$municipio
+                
+            } else {
+                
+                ids <- filter(raw_data, CVE_ENT %in% input$mex_state)$GEOID_MX
+                
+            }
             
         }
         
@@ -208,13 +216,15 @@ server <- function(input, output, session) {
         
         req(main_map_data())
         
+        shapefile <- main_map_data()
+        
         leaflet() %>%
             addProviderTiles(provider = "CartoDB.Positron") %>%
             setView(
                 zoom = 4,
                 # change latitude and longitude based on inputs
-                lat = mean(coordinates(main_map_data())[,2]),
-                lng = mean(coordinates(main_map_data())[,1])
+                lat = mean(coordinates(shapefile)[,2]),
+                lng = mean(coordinates(shapefile)[,1])
             )
     })
     
@@ -278,20 +288,22 @@ server <- function(input, output, session) {
     output$n_total <- renderText({
         
         req(input$by)
-        
+
         n_total <- sum(main_map_data()@data$migrations)
-        
+
         share <- n_total / total_matriculas * 100
         # TODO: when level is commuting zone, the number of matriculas decreases
         paste0("No. Matriculas for ", input$by, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
+        
     })
     
     output$aux <- renderText({
         input$map_shape_click$id
     })
     
-    # -- secondary data
-    # sec_map_data <- eventReactive(input$map_shape_click, {
+    # -- secondary data: updated when user clicks on a location on the map on the LHS
+    # TODO: when user changes level from LHS map, it throws an error -- How to avoid that?
+    # Note: it makes all sense as another location should be clicked first
     sec_map_data <- reactive({
         
         req(input$map_shape_click)
@@ -333,10 +345,16 @@ server <- function(input, output, session) {
         
         id <- input$map_shape_click$id
         
+        input$level <- "County/Municipio"
+        
         if(input$level != "County/Municipio"){
             
             id <- get_ids(raw_data, id = id, by = input$by, level = input$level)
         }
+        
+        validate(
+            need(!identical(id, character(0)), "Please select a location to update the map")
+        )
         
         migrations <- filter_data(raw_data, ids = id, by = by) %>%
             filter(LEVEL == input$level2) %>%
@@ -468,6 +486,10 @@ server <- function(input, output, session) {
         
         paste0("No. Matriculas for ", name, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
         
+    })
+    
+    output$aux2 <- renderText({
+        input$map2_shape_click$id
     })
     
 }
