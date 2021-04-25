@@ -74,7 +74,7 @@ ui <- shinyUI({
                         
                         br(),
                         
-                        # textOutput(outputId = "aux", inline = TRUE)
+                        textOutput(outputId = "aux", inline = TRUE),
                         
                         downloadButton(outputId = "downloadMap1", label = "Download Map")
                     ),
