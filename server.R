@@ -103,7 +103,7 @@ server <- function(input, output, session) {
                 label = "Level of geographic aggregation:", 
                 choices = levels[!levels %in% "Commuting zone"], 
                 inline = TRUE,
-                selected = levels[3]
+                selected = levels[1]
             )
             
         } else {
@@ -113,7 +113,7 @@ server <- function(input, output, session) {
                 label = "Level of geographic aggregation:", 
                 choices = levels, 
                 inline = TRUE,
-                selected = levels[3]
+                selected = levels[1]
             )
         }
     })
@@ -215,8 +215,7 @@ server <- function(input, output, session) {
     })
     
     # -- main map
-    output$map <- renderLeaflet({
-        
+    map_reactive <- reactive({
         req(main_map_data())
         
         shapefile <- main_map_data()
@@ -231,58 +230,20 @@ server <- function(input, output, session) {
             )
     })
     
+    output$map <- renderLeaflet({
+        map_reactive()
+    })
+    
     # -- replace layer according to user inputs
+    # TODO: create a function that updates tiles in map
     observe({
         
         req(main_map_data())
         
-        data <- main_map_data()@data
-        
-        n_max <- round(max(data$wt.x), digits = 0) + .5
-        
-        bins <- seq(from = 0, to = n_max, by = n_max / 5)
-        
-        pal <- colorBin("Blues", domain = data$wt.x, bins = bins)
-        
-        if(input$by == "Destination"){
-            states_map <- mex_states
-        } else {
-            states_map <- us_states
-        }
-        
-        labs <- paste0(
-            "<b>", data$NAME, " (", data$STATEABBR, ")</b><br>",
-            "w.r.t ", input$by, ": ",
-            format(data$migrations, nsmall = 0, big.mark = ","), " migrations (", round(data$wt.x, 1), "%)",
-            "<br>",
-            "w.r.t all MCAS: ",
-            format(data$n_total, nsmall = 0, big.mark = ","), " migrations (", round(data$wt.y, 1), "%)"
-        ) %>% as.list()
-        
-        leafletProxy(mapId = "map", data = main_map_data()) %>%
-            addPolygons(
-                fillColor = ~ pal(wt.x),
-                label = lapply(labs, HTML),
-                weight = 1,
-                opacity = 1,
-                color = "black",
-                dashArray = "1",
-                fillOpacity = 0.85,
-                layerId = ~ GEOID
-            ) %>%
-            addLegend(
-                pal = pal,
-                values = ~wt.x,
-                opacity = 0.85,
-                position = "bottomright",
-                title = "Migrations Percentages",
-                labFormat = labelFormat(suffix = "%")
-            ) %>%
-            addPolylines(
-                data = states_map,
-                color = "black",
-                opacity = 1,
-                weight = 2
+        leafletProxy(mapId = "map") %>% 
+            create_map(
+                map_data = main_map_data(), 
+                by = input$by
             )
     })
     
@@ -299,6 +260,24 @@ server <- function(input, output, session) {
         paste0("No. Matriculas for ", input$by, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
         
     })
+    
+    # download handler for map 1
+    output$downloadMap1 <- downloadHandler(
+        
+        filename = function() {
+            paste("map1-data-", Sys.Date(), ".png", sep="")
+        },
+        content = function(file) {
+            mapshot(
+                x = map_reactive() %>% 
+                    create_map(
+                        map = main_map_data(), 
+                        by = input$by
+                ), 
+                file = file
+            )
+        }
+    )
     
     output$aux <- renderText({
         input$map_shape_click$id
@@ -375,7 +354,7 @@ server <- function(input, output, session) {
     })
     
     # -- secondary map based on user clicks on main map
-    output$map2 <- renderLeaflet({
+    map_reactive2 <- reactive({
         
         req(sec_map_data())
         
@@ -389,60 +368,22 @@ server <- function(input, output, session) {
             )
     })
     
+    output$map2 <- renderLeaflet({
+        map_reactive2()
+    })
+    
     # -- replace layer according to user inputs
     observe({
         
         req(sec_map_data())
         
-        data <- sec_map_data()@data
-        
-        n_max <- round(max(data$wt.x), digits = 0) + .5
-        
-        bins <- seq(from = 0, to = n_max, by = n_max / 5)
-        
-        pal <- colorBin("Purples", domain = data$wt.x, bins = bins)
-        
-        if(input$by == "Destination"){
-            states_map <- us_states
-        } else {
-            states_map <- mex_states
-        }
-        
-        labs <- paste0(
-            "<b>", data$NAME, " (", data$STATEABBR, ")</b><br>",
-            "w.r.t ", input$by, ": ",
-            format(data$migrations, nsmall = 0, big.mark = ","), " migrations (", round(data$wt.x, 1), "%)",
-            "<br>",
-            "w.r.t all MCAS: ",
-            format(data$n_total, nsmall = 0, big.mark = ","), " migrations (", round(data$wt.y, 1), "%)"
-        ) %>% as.list()
-        
-        leafletProxy(mapId = "map2", data = sec_map_data()) %>%
-            addPolygons(
-                fillColor = ~ pal(wt.x),
-                label = lapply(labs, HTML),
-                weight = 1,
-                opacity = 1,
-                color = "black",
-                dashArray = "1",
-                fillOpacity = 0.85,
-                layerId = ~ GEOID
-            ) %>%
-            addLegend(
-                pal = pal,
-                values = ~wt.x,
-                opacity = 0.85,
-                position = "bottomright",
-                title = "Migrations Percentages",
-                labFormat = labelFormat(suffix = "%")
-            ) %>%
-            addPolylines(
-                data = states_map,
-                color = "black",
-                opacity = 1,
-                weight = 2
+        leafletProxy(mapId = "map2") %>% 
+            create_map(
+                map_data = sec_map_data(), 
+                by = input$by,
+                primary = FALSE,
+                palette = "Purples"
             )
-        
     })
     
     # -- display total number of migrations for secondary map
@@ -489,6 +430,26 @@ server <- function(input, output, session) {
         paste0("No. Matriculas for ", name, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
         
     })
+    
+    # download handler for map 1
+    output$downloadMap2 <- downloadHandler(
+        
+        filename = function() {
+            paste("map1-data-", Sys.Date(), ".png", sep="")
+        },
+        content = function(file) {
+            mapshot(
+                x = map_reactive2() %>% 
+                    create_map(
+                        map_data = sec_map_data(), 
+                        by = input$by,
+                        primary = FALSE,
+                        palette = "Purples"
+                    ), 
+                file = file
+            )
+        }
+    )
     
     output$aux2 <- renderText({
         input$map2_shape_click$id

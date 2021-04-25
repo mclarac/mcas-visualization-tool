@@ -64,7 +64,11 @@ ui <- shinyUI({
                         
                         br(),
                         
-                        textOutput(outputId = "aux", inline = TRUE)
+                        br(),
+                        
+                        # textOutput(outputId = "aux", inline = TRUE)
+                        
+                        downloadButton(outputId = "downloadMap1", label = "Download Map")
                     ),
                     
                     column(
@@ -81,7 +85,11 @@ ui <- shinyUI({
                         
                         br(),
                         
-                        textOutput(outputId = "aux2", inline = TRUE),
+                        br(),
+                        
+                        # textOutput(outputId = "aux2", inline = TRUE),
+                        
+                        downloadButton(outputId = "downloadMap2", label = "Download Map"),
                         
                         tags$head(
                             tags$style(

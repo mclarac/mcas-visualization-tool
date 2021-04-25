@@ -11,10 +11,12 @@ library("rgdal")
 library("sf")
 library("leaflet")
 library("leaflet.extras")
+library("mapview")
 
 # --import shiny components
 source(file = "ui.R", local = TRUE)
 source(file = "server.R")
+source(file = 'create_map.R')
 
 # -- data manipulation functions
 get_ids <- function(data, id, by = "Source", level = "State"){
