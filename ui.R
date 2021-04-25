@@ -7,9 +7,17 @@ ui <- shinyUI({
         
         br(),
         
-        # themeSelector(),
+        theme = bs_theme(
+            bg = "#ebebeb", 
+            fg = "#000",
+            primary = "#fcbf49", 
+            secondary = "#003049", 
+            base_font = font_google("PT Sans"), 
+            heading_font = font_google("Bebas Neue"), 
+            bootswatch = "litera"
+        ),
         
-        theme = shinytheme("simplex"),
+        # theme = shinytheme("simplex"),
         
         sidebarLayout(
             

@@ -1,5 +1,6 @@
 library("shiny")
 library("shinythemes")
+library("bslib")
 library("DT")
 
 library("tidyr")
@@ -189,6 +190,10 @@ us_cz@data <- us_cz@data %>%
 
 # -- helpers
 
+my_pal1 <- rev(c("#012a4a", "#01497c", "#2a6f97", "#61a5c2", "#cae9ff"))
+
+my_pal2 <- rev(c("#f4762d", "#f8964c", "#fbb76b", "#ffd78a", "#ffd899"))
+
 levels <- c("State", "Commuting zone", "County/Municipio")
 
 states_counties <- raw_data %>% 
@@ -220,10 +225,10 @@ names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
 # -- dummy input
 # IMPORTANT: uncomment only for testing!!!
 input <- list(
-    by = "Source",
-    # us_state = us_states_choices[1]
-    mex_state = mex_states_choices[1],
-    municipio = municipios[1],
+    by = "Destination",
+    us_state = "48",
+    # mex_state = mex_states_choices[1],
+    # municipio = municipios[1],
     level = "State",
     level2 = "State",
     map_shape_click = list(id = "06")

@@ -1,5 +1,8 @@
 server <- function(input, output, session) {
     
+    # to create custom theme
+    # bs_themer()
+    
     # -- dynamic dropdown lists for both US and Mexico
     output$opts <- renderUI({
         
@@ -235,7 +238,6 @@ server <- function(input, output, session) {
     })
     
     # -- replace layer according to user inputs
-    # TODO: create a function that updates tiles in map
     observe({
         
         req(main_map_data())
@@ -243,7 +245,8 @@ server <- function(input, output, session) {
         leafletProxy(mapId = "map") %>% 
             create_map(
                 map_data = main_map_data(), 
-                by = input$by
+                by = input$by,
+                palette = "Blues"
             )
     })
     
@@ -271,8 +274,9 @@ server <- function(input, output, session) {
             mapshot(
                 x = map_reactive() %>% 
                     create_map(
-                        map = main_map_data(), 
-                        by = input$by
+                        map_data = main_map_data(), 
+                        by = input$by,
+                        palette = "Blues"
                 ), 
                 file = file
             )
@@ -382,7 +386,7 @@ server <- function(input, output, session) {
                 map_data = sec_map_data(), 
                 by = input$by,
                 primary = FALSE,
-                palette = "Purples"
+                palette = "Oranges"
             )
     })
     
@@ -444,7 +448,7 @@ server <- function(input, output, session) {
                         map_data = sec_map_data(), 
                         by = input$by,
                         primary = FALSE,
-                        palette = "Purples"
+                        palette = "Oranges"
                     ), 
                 file = file
             )

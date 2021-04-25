@@ -3,8 +3,12 @@ create_map <- function(map, map_data, by, primary = TRUE, palette = "Blues"){
     data <- map_data@data
     
     n_max <- round(max(data$wt.x), digits = 0) + .5
+    # 
+    # bins <- round(seq(from = 0, to = n_max, length.out = 10), digits = 1)
     
-    bins <- seq(from = 0, to = n_max, by = n_max / 5)
+    quantiles <- quantile(data$wt.x, probs = c(.03, .16, .5, .84, .97), names = FALSE)
+    
+    bins <- unique(round(c(0, quantiles, n_max), 2))
     
     pal <- colorBin(palette, domain = data$wt.x, bins = bins)
     
@@ -51,3 +55,4 @@ create_map <- function(map, map_data, by, primary = TRUE, palette = "Blues"){
             weight = 2
         )
 }
+
