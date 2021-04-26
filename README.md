@@ -14,3 +14,5 @@ The main data set contains, as of March-21, 174,281 observations with the follow
 * `county`: U.S. county name
 first two are the FIPS code of the state to which the county belongs)
 * `matricula`
+
+Note: in the U.S. commuting zones file, the county Broomfield (Colorado) was assigned to the commuting zone Denver (CZ ID 28900) as it didn't appear originally in the file.

@@ -1,7 +1,113 @@
 server <- function(input, output, session) {
     
-    # to create custom theme
-    # bs_themer()
+    # -- for authentication
+    # call the logout module with reactive trigger to hide/show
+    logout_init <- callModule(
+        shinyauthr::logout, 
+        id = "logout", 
+        active = reactive(credentials()$user_auth)
+    )
+    
+    # call login module supplying data frame, user and password cols
+    # and reactive trigger
+    credentials <- callModule(
+        shinyauthr::login, 
+        id = "login", 
+        data = user_base,
+        user_col = user,
+        pwd_col = password,
+        log_out = reactive(logout_init())
+    )
+    
+    # pulls out the user information returned from login module
+    user_data <- reactive({credentials()$info})
+    
+    # render Layout when credentials are correct
+    output$sidebarlyt <- renderUI({
+        
+        # use req to only render results when credentials()$user_auth is TRUE
+        req(credentials()$user_auth)
+        
+        sidebarLayout(
+            
+            sidebarPanel(
+                
+                width = 2,
+                
+                radioButtons(
+                    inputId = "by", 
+                    label = "Analyze by:", 
+                    choices = c("Source", "Destination"), 
+                    inline = TRUE
+                ),
+                
+                hr(),
+                
+                uiOutput(outputId = "opts"),
+                
+                uiOutput(outputId = "opts2"),
+                
+                uiOutput(outputId = "opts3")
+            ),
+            
+            mainPanel(
+                width = 10,
+                
+                fluidRow(
+                    column(
+                        
+                        width = 6, 
+                        
+                        uiOutput(outputId = "opts4"),
+                        
+                        leafletOutput(outputId = "map", height = "600px"),
+                        
+                        textOutput(outputId = "n_total", inline = TRUE),
+                        
+                        tags$head(
+                            tags$style(
+                                "#n_total{ color: black;
+                                 font-size: 16px;
+                                 }"
+                            )
+                        ),
+                        
+                        br(), br(),
+                        
+                        # textOutput(outputId = "aux", inline = TRUE),
+                        
+                        downloadButton(outputId = "downloadMap1", label = "Download Map")
+                    ),
+                    
+                    column(
+                        
+                        width = 6,
+                        
+                        uiOutput(outputId = "opts5"),
+                        
+                        leafletOutput(outputId = "map2", height = "600px"),
+                        
+                        textOutput(outputId = "n_total2", inline = TRUE),
+                        
+                        br(), br(),
+                        
+                        # textOutput(outputId = "aux2", inline = TRUE),
+                        
+                        downloadButton(outputId = "downloadMap2", label = "Download Map"),
+                        
+                        tags$head(
+                            tags$style(
+                                "#n_total2{ color: black;
+                                 font-size: 16px;
+                                 }"
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        
+    })
     
     # -- dynamic dropdown lists for both US and Mexico
     output$opts <- renderUI({
@@ -219,6 +325,7 @@ server <- function(input, output, session) {
     
     # -- main map
     map_reactive <- reactive({
+        
         req(main_map_data())
         
         shapefile <- main_map_data()
@@ -255,9 +362,9 @@ server <- function(input, output, session) {
     output$n_total <- renderText({
         
         req(input$by)
-
+        
         n_total <- sum(main_map_data()@data$migrations)
-
+        
         share <- n_total / total_matriculas * 100
         # TODO: when level is commuting zone, the number of matriculas decreases
         paste0("No. Matriculas for ", input$by, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
@@ -277,7 +384,7 @@ server <- function(input, output, session) {
                         map_data = main_map_data(), 
                         by = input$by,
                         palette = "Blues"
-                ), 
+                    ), 
                 file = file
             )
         }
