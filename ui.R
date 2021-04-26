@@ -22,8 +22,8 @@ ui <- shinyUI({
             fg = "#000",
             primary = "#fcbf49", 
             secondary = "#003049", 
-            base_font = font_google("PT Sans"), 
-            heading_font = font_google("Bebas Neue"), 
+            base_font = bslib::font_google("PT Sans"), 
+            heading_font = bslib::font_google("Bebas Neue"), 
             bootswatch = "litera"
         ),
         
