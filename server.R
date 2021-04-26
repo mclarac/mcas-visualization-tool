@@ -1,3 +1,52 @@
+library("shiny")
+library("tidyr")
+library("dplyr")
+library("stringr")
+library("scales")
+library("sp")
+library("leaflet")
+library("leaflet.extras")
+library("mapview")
+library("shinyauthr")
+library("shinyjs")
+
+# -- load users and passwords
+user_base <- readRDS("user_base.rds")
+
+# -- import helper functions
+source(file = 'utils.R')
+
+# -- load cleaned and transformed data
+load(file = 'cleaned_data.RData')
+
+# -- helpers
+levels <- c("State", "Commuting zone", "County/Municipio")
+
+states_counties <- raw_data %>% 
+    select(GEOID_US, STATEFP, STATE, CZ, CZ_NAME, COUNTYFP, COUNTY) %>%
+    distinct() %>% 
+    arrange(STATE, CZ_NAME, COUNTY)
+
+us_frequencies <- get_frequencies(data = raw_data, levels = levels)
+
+states_municipios <- raw_data %>% 
+    select(GEOID_MX, CVE_ENT, NOM_ENT, CVE_MUN, NOM_MUN) %>%
+    distinct() %>% 
+    arrange(NOM_ENT, NOM_MUN)
+
+mex_frequencies <- get_frequencies(data = raw_data, levels = levels, country = "mex")
+
+total_matriculas <- sum(raw_data$MATRICULA)
+
+# -- input choices
+us_states_choices <- states_counties$STATEFP %>% unique()
+
+names(us_states_choices) <- states_counties$STATE %>% unique()
+
+mex_states_choices <- states_municipios$CVE_ENT %>% unique()
+
+names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
+
 server <- function(input, output, session) {
     
     # -- for authentication
@@ -74,7 +123,7 @@ server <- function(input, output, session) {
                         
                         br(), br(),
                         
-                        # textOutput(outputId = "aux", inline = TRUE),
+                        # textOutput(outputId = "aux", inline = TRUE), br(),
                         
                         downloadButton(outputId = "downloadMap1", label = "Download Map")
                     ),
@@ -308,7 +357,7 @@ server <- function(input, output, session) {
             
         }
         
-        migrations <- filter_data(raw_data, ids, by = input$by) %>% 
+        migrations <- filter_data(raw_data, ids = ids, levels = levels, by = input$by) %>% 
             filter(LEVEL == input$level) %>% 
             # wt.x: share of total matriculas accounted for by that source/destination
             # wt.y: destination/source share of overall MCAS
@@ -353,7 +402,9 @@ server <- function(input, output, session) {
             create_map(
                 map_data = main_map_data(), 
                 by = input$by,
-                palette = "Blues"
+                palette = "Blues",
+                mex_states = mex_states, 
+                us_states = us_states
             )
     })
     
@@ -367,7 +418,7 @@ server <- function(input, output, session) {
         
         share <- n_total / total_matriculas * 100
         # TODO: when level is commuting zone, the number of matriculas decreases
-        paste0("No. Matriculas for ", input$by, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
+        paste0("No. Matriculas for ", input$by, ": ", comma(n_total), " (", round(share, 1), "%)")
         
     })
     
@@ -383,7 +434,9 @@ server <- function(input, output, session) {
                     create_map(
                         map_data = main_map_data(), 
                         by = input$by,
-                        palette = "Blues"
+                        palette = "Blues",
+                        mex_states = mex_states, 
+                        us_states = us_states
                     ), 
                 file = file
             )
@@ -443,7 +496,7 @@ server <- function(input, output, session) {
             id <- get_ids(raw_data, id = id, by = input$by, level = input$level)
         }
         
-        migrations <- filter_data(raw_data, ids = id, by = by) %>%
+        migrations <- filter_data(raw_data, ids = id, levels = levels, by = by) %>%
             filter(LEVEL == input$level2) %>%
             # wt.x: share of total matriculas accounted for by that source/destination
             # wt.y: destination/source share of overall MCAS
@@ -493,7 +546,9 @@ server <- function(input, output, session) {
                 map_data = sec_map_data(), 
                 by = input$by,
                 primary = FALSE,
-                palette = "Oranges"
+                palette = "Oranges",
+                mex_states = mex_states, 
+                us_states = us_states
             )
     })
     
@@ -538,7 +593,7 @@ server <- function(input, output, session) {
         
         share <- n_total / total_matriculas * 100
         
-        paste0("No. Matriculas for ", name, ": ", scales::comma(n_total), " (", round(share, 1), "%)")
+        paste0("No. Matriculas for ", name, ": ", comma(n_total), " (", round(share, 1), "%)")
         
     })
     
@@ -555,7 +610,9 @@ server <- function(input, output, session) {
                         map_data = sec_map_data(), 
                         by = input$by,
                         primary = FALSE,
-                        palette = "Oranges"
+                        palette = "Oranges",
+                        mex_states = mex_states, 
+                        us_states = us_states
                     ), 
                 file = file
             )

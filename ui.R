@@ -1,3 +1,8 @@
+library("shiny")
+library("bslib")
+library("shinyauthr")
+library("shinyjs")
+
 # --- GUI
 ui <- shinyUI({
 
@@ -7,7 +12,7 @@ ui <- shinyUI({
         
         # -- authentication
         # turn shinyjs on
-        shinyjs::useShinyjs(),
+        useShinyjs(),
         
         # add login panel UI function
         loginUI(id = "login"),
@@ -17,13 +22,13 @@ ui <- shinyUI({
         
         br(),
         
-        theme = bslib::bs_theme(
+        theme = bs_theme(
             bg = "#ebebeb", 
             fg = "#000",
             primary = "#fcbf49", 
             secondary = "#003049", 
-            base_font = bslib::font_google("PT Sans"), 
-            heading_font = bslib::font_google("Bebas Neue"), 
+            base_font = font_google("PT Sans"), 
+            heading_font = font_google("Bebas Neue"), 
             bootswatch = "litera"
         ),
         

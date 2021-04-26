@@ -5,23 +5,23 @@ get_ids <- function(data, id, by = "Source", level = "State"){
         
         if(level == "State"){
             
-            ids <- filter(raw_data, STATEFP == id)
+            ids <- filter(data, STATEFP == id)
             
         } else {
             
-            ids <- filter(raw_data, CZ == id)
+            ids <- filter(data, CZ == id)
         }
         
         ids <- ids$GEOID_US %>% unique()
         
     } else {
         
-        ids <- filter(raw_data, CVE_ENT == id)$GEOID_MX %>% unique()
+        ids <- filter(data, CVE_ENT == id)$GEOID_MX %>% unique()
         
     } 
 }
 
-get_frequencies <- function(data, country = "us"){
+get_frequencies <- function(data, levels, country = "us"){
     
     if(country == "us"){
         
@@ -31,7 +31,8 @@ get_frequencies <- function(data, country = "us"){
             mutate(LEVEL = plyr::mapvalues(
                 x = LEVEL, 
                 from = c("STATEFP", "CZ", "GEOID_US"), 
-                to = levels)
+                to = levels
+                )
             )
         
     } else {
@@ -42,7 +43,8 @@ get_frequencies <- function(data, country = "us"){
             mutate(LEVEL = plyr::mapvalues(
                 x = LEVEL, 
                 from = c("CVE_ENT", "GEOID_MX"), 
-                to = levels[!levels %in% "Commuting zone"])
+                to = levels[!levels %in% "Commuting zone"]
+                )
             )
         
     }
@@ -56,19 +58,19 @@ get_frequencies <- function(data, country = "us"){
     return(frequencies)
 }
 
-filter_data <- function(data, ids, by){
+filter_data <- function(data, ids, levels, by){
     
     if(by != "Source"){
         
         results <- data %>% 
             filter(GEOID_US %in% ids) %>% 
-            get_frequencies(country = "mex")
+            get_frequencies(levels = levels, country = "mex")
         
     } else {
         
         results <- data %>% 
             filter(GEOID_MX %in% ids) %>% 
-            get_frequencies(country = "us")
+            get_frequencies(levels = levels, country = "us")
     }
     
     results <- results %>% 
@@ -78,7 +80,7 @@ filter_data <- function(data, ids, by){
     return(results)
 }
 
-create_map <- function(map, map_data, by, primary = TRUE, palette = "Blues"){
+create_map <- function(map, map_data, by, primary = TRUE, palette = "Blues", mex_states, us_states){
     
     data <- map_data@data
     
@@ -93,9 +95,13 @@ create_map <- function(map, map_data, by, primary = TRUE, palette = "Blues"){
     pal <- colorBin(palette, domain = data$wt.x, bins = bins)
     
     if(by == "Destination"){
-        if(primary) states_map <- mex_states else states_map <- us_states
+        
+        if(isTRUE(primary)) states_map <- mex_states else states_map <- us_states
+        
     } else {
-        if(primary) states_map <- us_states else states_map <- mex_states
+        
+        if(isTRUE(primary)) states_map <- us_states else states_map <- mex_states
+        
     }
     
     labs <- paste0(
