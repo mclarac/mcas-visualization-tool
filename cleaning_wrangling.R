@@ -28,12 +28,6 @@ commuting_zones <- read_csv(
     )
 )
 
-# to check data inconsistencies
-# aux <- commuting_zones %>% 
-#     distinct(cz, statename, cz_name)
-# 
-# aux_counts <- aux %>% count(statename, cz_name, sort = TRUE)
-
 commuting_zones <- commuting_zones %>% 
     mutate_at(.vars = c("cty", "cz"),
               .funs = function(x) str_pad(x, width = 5, pad = "0")) %>% 
@@ -55,11 +49,7 @@ raw_data <- raw_data %>%
 
 names(raw_data) <- names(raw_data) %>% toupper()
 
-# tmp <- filter(raw_data, is.na(CZ_NAME)) %>% distinct(GEOID_US, STATE, COUNTY)
-
 # -- shapefiles transformations
-# load(file = "shapefiles.RData")
-
 us_states <- readOGR('./shapefiles/cb_2016_us_state_5m/cb_2016_us_state_5m.shp')
 
 us_counties <- readOGR('./shapefiles/cb_2016_us_county_5m/cb_2016_us_county_5m.shp')
