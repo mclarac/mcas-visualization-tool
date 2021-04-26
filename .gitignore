@@ -10,6 +10,10 @@ shapefiles/*
 
 # Data Files
 mcas_2008.csv
+cleaned_data.RData
 
 # R files
 create_users.R
+
+# Credentials file
+user_base.rds
