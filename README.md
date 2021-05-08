@@ -16,3 +16,25 @@ first two are the FIPS code of the state to which the county belongs)
 * `matricula`
 
 Note: in the U.S. commuting zones file, the county Broomfield (Colorado) was assigned to the commuting zone Denver (CZ ID 28900) as it didn't appear originally in the file.
+
+## R dependencies
+
+The app depends on the following packages:
+
+### For the app itself:
+- `shiny`
+- `shinyauthr`
+- `shinyjs`
+- `bslib`
+
+### For data manipulation
+- `tidyr`
+- `dplyr`
+- `stringr`
+- `scales`
+
+### For spatial data and visualization
+- `sp`
+- `leaflet`
+- `leaflet.extras`
+- `mapview`

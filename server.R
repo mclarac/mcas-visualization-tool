@@ -1,4 +1,6 @@
 library("shiny")
+library("shinyauthr")
+library("shinyjs")
 library("tidyr")
 library("dplyr")
 library("stringr")
@@ -7,8 +9,6 @@ library("sp")
 library("leaflet")
 library("leaflet.extras")
 library("mapview")
-library("shinyauthr")
-library("shinyjs")
 
 # -- load users and passwords
 user_base <- readRDS("user_base.rds")
