@@ -1,6 +1,4 @@
 library("shiny")
-library("shinyauthr")
-library("shinyjs")
 library("tidyr")
 library("dplyr")
 library("stringr")
@@ -9,9 +7,6 @@ library("sp")
 library("leaflet")
 library("leaflet.extras")
 library("mapview")
-
-# -- load users and passwords
-user_base <- readRDS("user_base.rds")
 
 # -- import helper functions
 source(file = 'utils.R')
@@ -48,115 +43,6 @@ mex_states_choices <- states_municipios$CVE_ENT %>% unique()
 names(mex_states_choices) <- states_municipios$NOM_ENT %>% unique()
 
 server <- function(input, output, session) {
-    
-    # -- for authentication
-    # call the logout module with reactive trigger to hide/show
-    logout_init <- callModule(
-        shinyauthr::logout, 
-        id = "logout", 
-        active = reactive(credentials()$user_auth)
-    )
-    
-    # call login module supplying data frame, user and password cols
-    # and reactive trigger
-    credentials <- callModule(
-        shinyauthr::login, 
-        id = "login", 
-        data = user_base,
-        user_col = user,
-        pwd_col = password,
-        log_out = reactive(logout_init())
-    )
-    
-    # pulls out the user information returned from login module
-    user_data <- reactive({credentials()$info})
-    
-    # render Layout when credentials are correct
-    output$sidebarlyt <- renderUI({
-        
-        # use req to only render results when credentials()$user_auth is TRUE
-        req(credentials()$user_auth)
-        
-        sidebarLayout(
-            
-            sidebarPanel(
-                
-                width = 2,
-                
-                radioButtons(
-                    inputId = "by", 
-                    label = "Analyze by:", 
-                    choices = c("Source", "Destination"), 
-                    inline = TRUE
-                ),
-                
-                hr(),
-                
-                uiOutput(outputId = "opts"),
-                
-                uiOutput(outputId = "opts2"),
-                
-                uiOutput(outputId = "opts3")
-            ),
-            
-            mainPanel(
-                width = 10,
-                
-                fluidRow(
-                    column(
-                        
-                        width = 6, 
-                        
-                        uiOutput(outputId = "opts4"),
-                        
-                        leafletOutput(outputId = "map", height = "600px"),
-                        
-                        textOutput(outputId = "n_total", inline = TRUE),
-                        
-                        tags$head(
-                            tags$style(
-                                "#n_total{ color: black;
-                                 font-size: 16px;
-                                 }"
-                            )
-                        ),
-                        
-                        br(), br(),
-                        
-                        # textOutput(outputId = "aux", inline = TRUE), br(),
-                        
-                        downloadButton(outputId = "downloadMap1", label = "Download Map")
-                    ),
-                    
-                    column(
-                        
-                        width = 6,
-                        
-                        uiOutput(outputId = "opts5"),
-                        
-                        leafletOutput(outputId = "map2", height = "600px"),
-                        
-                        textOutput(outputId = "n_total2", inline = TRUE),
-                        
-                        br(), br(),
-                        
-                        # textOutput(outputId = "aux2", inline = TRUE),
-                        
-                        downloadButton(outputId = "downloadMap2", label = "Download Map"),
-                        
-                        tags$head(
-                            tags$style(
-                                "#n_total2{ color: black;
-                                 font-size: 16px;
-                                 }"
-                            )
-                        )
-                    )
-                )
-            )
-        )
-        
-    })
     
     # -- dynamic dropdown lists for both US and Mexico
     output$opts <- renderUI({

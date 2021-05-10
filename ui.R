@@ -1,24 +1,13 @@
 library("shiny")
 library("bslib")
-library("shinyauthr")
-library("shinyjs")
+library("leaflet")
 
 # --- GUI
 ui <- shinyUI({
-
+    
     fluidPage(
         
         titlePanel(title = "Migrant Destinations & Sources Distributions"),
-        
-        # -- authentication
-        # turn shinyjs on
-        useShinyjs(),
-        
-        # add login panel UI function
-        loginUI(id = "login"),
-        
-        # setup table output to show user info after login
-        tableOutput("user_table"),
         
         br(),
         
@@ -32,12 +21,84 @@ ui <- shinyUI({
             bootswatch = "litera"
         ),
         
-        # theme = shinytheme("simplex"),
-        
-        uiOutput(outputId = "sidebarlyt"),
-        
-        # add logout button UI 
-        div(class = "pull-right", logoutUI(id = "logout"))
+        sidebarLayout(
+            
+            sidebarPanel(
+                
+                width = 2,
+                
+                radioButtons(
+                    inputId = "by", 
+                    label = "Analyze by:", 
+                    choices = c("Source", "Destination"), 
+                    inline = TRUE
+                ),
+                
+                hr(),
+                
+                uiOutput(outputId = "opts"),
+                
+                uiOutput(outputId = "opts2"),
+                
+                uiOutput(outputId = "opts3")
+            ),
+            
+            mainPanel(
+                width = 10,
+                
+                fluidRow(
+                    column(
+                        
+                        width = 6, 
+                        
+                        uiOutput(outputId = "opts4"),
+                        
+                        leafletOutput(outputId = "map", height = "600px"),
+                        
+                        textOutput(outputId = "n_total", inline = TRUE),
+                        
+                        tags$head(
+                            tags$style(
+                                "#n_total{ color: black;
+                                 font-size: 16px;
+                                 }"
+                            )
+                        ),
+                        
+                        br(), br(),
+                        
+                        # textOutput(outputId = "aux", inline = TRUE), br(),
+                        
+                        downloadButton(outputId = "downloadMap1", label = "Download Map")
+                        
+                    ),
+                    
+                    column(
+                        
+                        width = 6,
+                        
+                        uiOutput(outputId = "opts5"),
+                        
+                        leafletOutput(outputId = "map2", height = "600px"),
+                        
+                        textOutput(outputId = "n_total2", inline = TRUE),
+                        
+                        br(), br(),
+                        
+                        # textOutput(outputId = "aux2", inline = TRUE),
+                        
+                        downloadButton(outputId = "downloadMap2", label = "Download Map"),
+                        
+                        tags$head(
+                            tags$style(
+                                "#n_total2{ color: black;
+                                 font-size: 16px;
+                                 }"
+                            )
+                        )
+                    )
+                )
+            )
+        )
     )
-    
 })
