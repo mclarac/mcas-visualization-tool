@@ -71,12 +71,14 @@ ui <- shinyUI({
                         
                         downloadButton(
                             outputId = "downloadMap1", 
-                            label = "Download Map"
+                            label = "Download Map",
+                            icon = icon("map-marked-alt")
                         ),
                         
                         downloadButton(
                             outputId = "downloadData1", 
-                            label = "Download Data"
+                            label = "Download Data",
+                            icon = icon("database")
                         )
                     ),
                     
@@ -96,12 +98,14 @@ ui <- shinyUI({
                         
                         downloadButton(
                             outputId = "downloadMap2", 
-                            label = "Download Map"
+                            label = "Download Map",
+                            icon = icon("map-marked-alt")
                         ),
                         
                         downloadButton(
                             outputId = "downloadData2", 
-                            label = "Download Data"
+                            label = "Download Data",
+                            icon = icon("database")
                         ),
                         
                         tags$head(
