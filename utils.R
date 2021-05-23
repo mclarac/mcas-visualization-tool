@@ -85,8 +85,6 @@ create_map <- function(map, map_data, by, primary = TRUE, palette = "Blues", mex
     data <- map_data@data
     
     n_max <- round(max(data$wt.x), digits = 0) + .5
-    # 
-    # bins <- round(seq(from = 0, to = n_max, length.out = 10), digits = 1)
     
     quantiles <- quantile(data$wt.x, probs = c(.03, .16, .5, .84, .97), names = FALSE)
     

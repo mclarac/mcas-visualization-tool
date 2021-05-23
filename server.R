@@ -7,6 +7,7 @@ library("sp")
 library("leaflet")
 library("leaflet.extras")
 library("mapview")
+library("htmlwidgets")
 
 # -- import helper functions
 source(file = 'utils.R')
@@ -312,13 +313,13 @@ server <- function(input, output, session) {
     output$downloadMap1 <- downloadHandler(
         
         filename = function() {
-            paste("map1-data-", Sys.Date(), ".png", sep="")
+            paste("map1-", Sys.Date(), ".html", sep = "")
         },
         content = function(file) {
-            mapshot(
-                x = map_reactive() %>% 
+            saveWidget(
+                widget = map_reactive() %>% 
                     create_map(
-                        map_data = main_map_data(), 
+                        map_data = , 
                         by = input$by,
                         palette = "Blues",
                         mex_states = mex_states, 
@@ -326,6 +327,33 @@ server <- function(input, output, session) {
                     ), 
                 file = file
             )
+        }
+    )
+    
+    # extract data from shapefile and select only some columns
+    data1 <- reactive({
+        
+        data <- main_map_data()@data %>% 
+            select(STATENAME = NAME,
+                   !!paste0("MIGRATIONS_", input$by) := migrations,
+                   !!paste0("PERCENT_WRT_", input$by) := wt.x,
+                   TOTAL_MIGRATIONS = n_total,
+                   PERCENT_WRT_ALL = wt.y
+               )
+        
+        names(data) <- names(data) %>% tolower()
+        
+        return(data)
+    })
+    
+    # download handler for map data 1
+    output$downloadData1 <- downloadHandler(
+        
+        filename = function() {
+            paste("data1-", Sys.Date(), ".csv", sep = "")
+        },
+        content = function(file) {
+            write.csv(x = data1(), file = file, row.names = FALSE)
         }
     )
     
@@ -487,11 +515,11 @@ server <- function(input, output, session) {
     output$downloadMap2 <- downloadHandler(
         
         filename = function() {
-            paste("map1-data-", Sys.Date(), ".png", sep="")
+            paste("map2-", Sys.Date(), ".html", sep="")
         },
         content = function(file) {
-            mapshot(
-                x = map_reactive2() %>% 
+            saveWidget(
+                widget = map_reactive2() %>% 
                     create_map(
                         map_data = sec_map_data(), 
                         by = input$by,
@@ -502,6 +530,32 @@ server <- function(input, output, session) {
                     ), 
                 file = file
             )
+        }
+    )
+    
+    data2 <- reactive({
+        
+        data <- sec_map_data()@data %>% 
+            select(STATENAME = NAME,
+                   !!paste0("MIGRATIONS_", input$by) := migrations,
+                   !!paste0("PERCENT_WRT_", input$by) := wt.x,
+                   TOTAL_MIGRATIONS = n_total,
+                   PERCENT_WRT_ALL = wt.y
+            )
+        
+        names(data) <- names(data) %>% tolower()
+        
+        return(data)
+    })
+    
+    # download handler for map 2
+    output$downloadData2 <- downloadHandler(
+        
+        filename = function() {
+            paste("data2-", Sys.Date(), ".csv", sep = "")
+        },
+        content = function(file) {
+            write.csv(x = data2(), file = file, row.names = FALSE)
         }
     )
     
