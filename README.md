@@ -30,6 +30,7 @@ The app depends on the following packages:
 - `shiny`
 - `shinyauthr`
 - `shinyjs`
+- `shinybusy`
 - `bslib`
 
 ### For data manipulation
@@ -42,4 +43,4 @@ The app depends on the following packages:
 - `sp`
 - `leaflet`
 - `leaflet.extras`
-- `mapview`
+- `htmlwidgets`

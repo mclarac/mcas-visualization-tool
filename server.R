@@ -319,7 +319,7 @@ server <- function(input, output, session) {
             saveWidget(
                 widget = map_reactive() %>% 
                     create_map(
-                        map_data = , 
+                        map_data = main_map_data(), 
                         by = input$by,
                         palette = "Blues",
                         mex_states = mex_states, 
@@ -329,17 +329,18 @@ server <- function(input, output, session) {
             )
         }
     )
-    
+
     # extract data from shapefile and select only some columns
     data1 <- reactive({
         
         data <- main_map_data()@data %>% 
-            select(STATENAME = NAME,
+            select(STATEABBR,
+                   NAME,
                    !!paste0("MIGRATIONS_", input$by) := migrations,
                    !!paste0("PERCENT_WRT_", input$by) := wt.x,
                    TOTAL_MIGRATIONS = n_total,
                    PERCENT_WRT_ALL = wt.y
-               )
+            )
         
         names(data) <- names(data) %>% tolower()
         
@@ -536,7 +537,8 @@ server <- function(input, output, session) {
     data2 <- reactive({
         
         data <- sec_map_data()@data %>% 
-            select(STATENAME = NAME,
+            select(STATEABBR,
+                   NAME,
                    !!paste0("MIGRATIONS_", input$by) := migrations,
                    !!paste0("PERCENT_WRT_", input$by) := wt.x,
                    TOTAL_MIGRATIONS = n_total,

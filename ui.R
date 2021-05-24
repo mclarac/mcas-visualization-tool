@@ -7,6 +7,8 @@ ui <- shinyUI({
     
     fluidPage(
         
+        shinybusy::add_busy_spinner(spin = "fading-circle"),
+        
         titlePanel(title = "Migrant Destinations & Sources Distributions"),
         
         br(),
