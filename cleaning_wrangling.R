@@ -61,6 +61,13 @@ mex_states <- readOGR('./shapefiles/mexstates/mexstates.shp')
 mex_municipios <- readOGR('./shapefiles/muni_2012gw/Muni_2012gw.shp', encoding = "UTF-8")
 
 mex_states@data <- mex_states@data %>%
+    # see email from mcaballe on May 17th, 2021
+    mutate(FIPS_ADMIN = case_when(
+        FIPS_ADMIN == "MX07" ~ "05",
+        FIPS_ADMIN == "MX05" ~ "07",
+        FIPS_ADMIN == "MX08" ~ "06",
+        FIPS_ADMIN == "MX06" ~ "08",
+        TRUE ~ FIPS_ADMIN)) %>% 
     # remove MX for every GMI_ADMIN and extract only numbers from CVE_ENT
     # so variable values are consistent with raw_data
     mutate(STATEABBR = str_sub(GMI_ADMIN, start = 5),
